@@ -1,0 +1,199 @@
+:root {
+    --ui-background: white;
+    --ui-background-transparent: #ffffff80;
+    --ui-input: #e9e9ed;
+    --ui-input-hover: #d2d2d5;
+    --ui-hilight: #61a6ff;
+}
+
+html, body {
+    position: absolute;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    left: 0px;
+	top: 0px;
+}
+
+html {
+	overscroll-behavior: none;
+	font-size: 14px;
+	font-family: bold;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-touch-callout: none;
+}
+
+body {
+    transition: background-color .3s;
+	background-color: #333;
+    margin: 0px;
+    font-family: Arial, sans-serif;
+    font-size: 150%;
+}
+
+input[type="button"] {
+    border: none;
+    padding: 12px 60px 12px 60px;
+    border-radius: 4px;
+    background-color: var(--ui-input);
+    transition: background-color .1s;
+}
+
+input[type="button"]:hover {
+    background-color: var(--ui-input-hover);
+}
+
+.hud {
+    position: absolute;
+    background-color: var(--ui-background);
+    display: flex;
+    box-shadow: 0px 0px 4px black;
+    width: 140px;
+    height: 60px;
+    user-select: none;
+    overflow: hidden;
+}
+
+.hud > p {
+    align-self: center;
+    text-align: center;
+    font-size: 18px;
+    flex-grow: 1;
+}
+
+.game-title {
+    border-radius: 0px 0px 8px 0px;
+}
+
+.game-actions {
+    right: 0px;
+    top: 0px;
+    border-radius: 0px 0px 0px 8px;
+    width: min(60%, 300px);
+}
+
+.game-actions > p {
+    flex-grow: 1;
+    text-align: center;
+    align-self: center;
+    margin: 0px;
+    padding-top: 19px;
+    padding-bottom: 19px;
+    transition: background-color .1s, border .1s;
+}
+
+.game-actions > p:hover {
+    background-color: var(--ui-input-hover);
+}
+
+.menu {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--ui-background);
+    box-shadow: 0px 0px 16px black;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    user-select: none;
+}
+
+.menu > * {
+    align-self: center;
+}
+
+.main-menu {
+    width: min(calc(100% - 28px), 500px);
+    height: min(calc(100% - 28px), 500px);
+}
+
+.spawn-menu {
+    background-color: var(--ui-background-transparent);
+    width: min(calc(100% - 28px), 500px);
+    top: 25%;
+}
+
+.spawn-menu > div {
+    display: flex;
+    flex-direction: row;
+    column-gap: 8px;
+}
+
+.spawn-menu > div > * {
+    flex-grow: 1;
+}
+
+.scroll-picker {
+    width: 100%;
+    height: 128px;
+    display: flex;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    position: relative;
+    column-gap: 8px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scroll-picker::-webkit-scrollbar {
+    display: none;
+}
+
+/*
+Cursed fade out when there is more to display effect - we disable for now
+.scroll-picker::after {
+    position: absolute;
+    width: 100%;
+    height: 128px;
+    content: " ";
+    background: linear-gradient(to right, var(--ui-background) 0%,
+        transparent 5%, transparent 95%, var(--ui-background) 100%);
+    pointer-events: none;
+}*/
+
+.scroll-picker > div {
+    border: 2px solid transparent;
+    min-width: 128px;
+    min-height: 116px;
+    background-color: var(--ui-input);
+    border-radius: 8px;
+    transition: background-color .1s, border .1s;
+}
+
+.scroll-picker:hover > div:hover {
+    background-color: var(--ui-input-hover);
+}
+
+.scroll-picker > div * {
+    pointer-events: none;
+}
+
+.scroll-picker > div[selected] {
+    border: 2px solid var(--ui-hilight);
+    min-height: 116px;
+}
+
+/*
+This is a cursed blur effect that is supposed to go behind main menu, broken for now
+.menu::before {
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    content: " ";
+    backdrop-filter: blur(10px);
+}
+*/
+
+
+#board {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 512px;
+    height: 512px;
+}

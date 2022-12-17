@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anarchy Chess</title>
+    <meta name="description" content="A massive multiplayer chess board with slightly bent rules. Here be anarchy.">
+    <meta name="keywords" content="chess anarchy game multiplayer online">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="board">
+        <canvas id="1" width="512" height="512"></canvas>
+    </div>
+
+    <div class="hud game-title">
+        <p>Anarchy Chess</p>
+    </div>
+
+    <div class="hud game-actions">
+        <p>Chat</p>
+        <p>Settings</p>
+        <p>Quit</p>
+    </div>
+
+    <div class="menu main-menu">
+        <h1>Anarchy Chess</h1>
+        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+        <p>Choose a piece:</p>
+        <div class="scroll-picker" id="sc"
+            onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
+            onclick="
+                let current = this.querySelector('[selected]');
+                if (current != null) current.removeAttribute('selected');
+                event.target.setAttribute('selected', true);
+            ">
+            <div selected>Pawn<img src="Assets/pawn.svg"></div>
+            <div>Bishop<img src="Assets/bishop.svg"></div>
+            <div>Knight<img src="Assets/knight.svg"></div>
+            <div>Rook<img src="Assets/rook.svg"></div>
+            <div>Queen<img src="Assets/queen.svg"></div>
+            <div>King<img src="Assets/king.svg"></div>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <input value="Play" type="button">
+        <div style="flex-grow: 1;"></div>
+    </div>
+
+    <div class="menu spawn-menu">
+        <h2>Choose your spawn location</h2>
+        <div>
+            <input value="Spawn by friend" type="button">
+            <input value="Random location" type="button">
+        </div>
+    </div>
+</body>
+<script>
+    let HEIGHT = 512
+    let WIDTH = 512
+    let ROWS = 8
+    let COLUMNS = 8
+
+    let CANVASES = []
+</script>
+<script>
+
+    function createCanvas(x, y, pieces) {
+
+    }
+
+    function getPiece(canvas) {
+
+    }
+
+    function setPiece(canvas) {
+
+    }
+
+    function removePiece(canvas) {
+
+    }
+
+
+    function drawCheckeredBackground(canvas) {
+        const ctx = canvas.getContext("2d")
+        const blockWidth = canvas.width / 8
+        const blockHeight = canvas.height / 8
+
+        ctx.fillStyle = "white"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        
+        let shift = false
+        for (let row = 0; row < ROWS; row++) {
+            for (let column = 0; column < COLUMNS; column++) {
+                if (column % 2 != 0) continue
+
+                let x = (column + shift) * blockWidth
+                let y = row * blockHeight
+                let gradientBlack = ctx.createLinearGradient(x, y, x + blockWidth, y + blockHeight)
+
+                gradientBlack.addColorStop(0, "#3C3C3C")
+                gradientBlack.addColorStop(1, "black")
+                ctx.fillStyle = gradientBlack
+                ctx.fillRect(x, y, blockWidth, blockHeight)
+            }
+
+            shift = !shift
+        }
+    }
+</script>
+</html>
