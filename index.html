@@ -20,10 +20,10 @@
     <div class="hud game-actions">
         <p>Chat</p>
         <p>Settings</p>
-        <p>Quit</p>
+        <p>Help</p>
     </div>
-
-    <div class="menu main-menu">
+    
+    <div id="mainMenu" class="menu main-menu">
         <h1>Anarchy Chess</h1>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
         <p>Choose a piece:</p>
@@ -42,11 +42,14 @@
             <div>King<img src="Assets/king.svg"></div>
         </div>
         <div style="flex-grow: 1;"></div>
-        <input value="Play" type="button">
+        <input value="Play" type="button" onclick="
+            mainMenu.style.display = 'none';
+            spawnMenu.style.display = 'flex';
+        ">
         <div style="flex-grow: 1;"></div>
     </div>
 
-    <div class="menu spawn-menu">
+    <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
         <h2>Choose your spawn location</h2>
         <div>
             <input value="Spawn by friend" type="button">
@@ -59,20 +62,82 @@
     let WIDTH = 512
     let ROWS = 8
     let COLUMNS = 8
-
     let CANVASES = []
+
+    const serverPackets = {
+        Canvases: 0,
+        Move: 1,
+        Reject: 2,
+        Death: 3,
+        RemovePiece: 4,
+        AddPiece: 5,
+        Chat: 6,
+        /*
+        FriendRequest: 7,
+        FriendAdded: 8,
+        FriendRemoved: 9,
+        FriendsOnline: 10
+        */
+    }
+
+    const pieces = {
+        Bishop: 0,
+        King: 1,
+        Knight: 2,
+        Pawn: 3,
+        Queen: 4,
+        Rook: 5
+    }
 </script>
 <script>
+    let ws = null
+
+    function connect(address) {
+        ws = new WebSocket(address)
+
+        ws.onmessage = ({data}) => {
+            switch (data) {
+                case serverPackets.Canvases:
+                    break
+                case serverPackets.Move:
+                    break
+                case serverPackets.Reject:
+                    break
+                case serverPackets.RemovePiece:
+                    break
+                case serverPackets.RemovePiece:
+                    break
+                case serverPackets.AddPiece:
+                    break
+                case serverPackets.Chat:
+                    break
+                /*
+                case serverPackets.FriendRequest:
+                    break
+                case serverPackets.FriendAdded:
+                    break
+                case serverPackets.FriendRemoved:
+                    break
+                case serverPackets.FriendsOnline:
+                    break
+                */
+            }
+        }
+        
+        ws.onclose = (event) => {
+
+        }
+    }
 
     function createCanvas(x, y, pieces) {
-
+        
     }
 
     function getPiece(canvas) {
 
     }
 
-    function setPiece(canvas) {
+    function setPiece(canvas, piece) {
 
     }
 
@@ -107,5 +172,7 @@
             shift = !shift
         }
     }
+
+    connect(localStorage.address || "wss://server.poemanthology.org:8083")
 </script>
 </html>
