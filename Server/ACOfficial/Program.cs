@@ -1,3 +1,5 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using AnarchyChess.Server;
 
-Console.WriteLine("Hello, World!");
+//GameData data, Map map, string certificatePath, string keyPath, string origin, bool ssl, int port
+var server = new ServerInstance(8087);
+await server.StartAsync();

@@ -109,9 +109,9 @@
         ws = new WebSocket(address)
 
         ws.onmessage = ({data}) => {
-            switch (data) {
+            switch (data[0]) {
                 case serverPackets.Canvases:
-                    break
+                    console.log("Buffer: " + data)
                 case serverPackets.Move:
                     break
                 case serverPackets.Reject:
@@ -164,7 +164,7 @@
 
 
     function drawCheckeredBackground(canvas) {
-        const ctx = canvas.getContext("2d")
+        const ctx = canvas.getContext("2d", { alpha: false })
         const blockWidth = canvas.width / 8
         const blockHeight = canvas.height / 8
 

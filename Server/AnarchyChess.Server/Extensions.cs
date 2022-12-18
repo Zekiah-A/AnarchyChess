@@ -18,4 +18,18 @@ public static class Extensions
 
         return (-1, -1);
     }
+    
+    public static void Fill<T>(this T[,] matrix, T value)
+    {
+        var width = matrix.GetLength(0);
+        var height = matrix.GetLength(1);
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                matrix[x, y] = value;
+            }
+        }
+    }
 }

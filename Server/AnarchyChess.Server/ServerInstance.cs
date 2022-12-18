@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -12,28 +13,46 @@ public sealed class ServerInstance
 {
     // ReSharper disable MemberCanBePrivate.Global
     public Map VirtualMap { get; }
-    public GameData GameData { get; }
     public Dictionary<ClientMetadata, Piece> Clients { get; set; } = new();
     
     private WatsonWsServer app;
 
-    public ServerInstance(GameData data, Map map, string certPath, string keyPath, string origin, bool ssl, int port)
+    public ServerInstance(int port, Map? map = null, bool ssl = false, string? certificatePath = null, string? keyPath = null)
     {
+        X509Certificate2 certificate = null;
+        X509Certificate2 key = null;
+        
+        map ??= new Map();
         VirtualMap = map;
-        GameData = data;
-        app = new WatsonWsServer(port, "localhost");
+        app = new WatsonWsServer(port, ssl, certificate,  key, "localhost");
     }
 
-    public async Task Start()
+    public async Task StartAsync()
     {
         // Encode entire virtual map to JSON to get client up to date
-        app.ClientConnected += async (sender, args) =>
+        app.ClientConnected += (sender, args) =>
         {
-            using var stream = new MemoryStream(); 
-            await JsonSerializer.SerializeAsync(stream, VirtualMap);
-            await stream.FlushAsync();
+            // We can not serialise 2D arrays to JSON, this makes just sending the virtual board impossible, Therefore
+            // we send the player the data for every single piece, followed by the params used to construct the boards
+            // on the map, so that the client can reconstruct it by itself.
             
-            await app.SendAsync(args.Client, stream.ToArray());
+            // (byte) Packet code, (byte) boards columns, (byte) boards rows,
+            // (byte) pieces columns, (byte) pieces rows, (byte..[]) pieces
+            var buffer = new byte[Clients.Count * 5 + 5];
+            buffer[0] = (byte) ServerPackets.Canvases;
+            buffer[1] = (byte) VirtualMap.Boards.GetLength(0);
+            buffer[2] = (byte) VirtualMap.Boards.GetLength(1);
+            buffer[3] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(0);
+            buffer[4] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(1);
+            
+            var i = 5;
+            foreach (var piece in Clients.Values)
+            {
+                SerialisePiecePacket(piece).CopyTo(buffer, i);
+                i += 4;
+            }
+
+            app.SendAsync(args.Client, buffer);
         };
 
         app.MessageReceived += (sender, args) =>
@@ -150,6 +169,9 @@ public sealed class ServerInstance
                 RemoveClient(clientPiece);
             }
         };
+        
+        await app.StartAsync();
+        await Task.Delay(-1);
     }
 
     private void RemoveClient(Piece clientPiece)

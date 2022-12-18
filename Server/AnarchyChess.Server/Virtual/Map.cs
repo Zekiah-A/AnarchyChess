@@ -7,11 +7,12 @@ namespace AnarchyChess.Server.Virtual;
 /// </summary>
 public sealed class Map
 {
-    public Board?[,] Boards;
+    public Board[,] Boards { get; private set; }
 
-    public Map(byte columns = 1, byte rows = 1)
+    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8)
     {
-        Boards = new Board?[columns, rows];
+        Boards = new Board[columns, rows];
+        Boards.Fill(new Board(pieceRows, pieceColumns));
     }
 
     public void ShiftAll(int directionX, int directionY)

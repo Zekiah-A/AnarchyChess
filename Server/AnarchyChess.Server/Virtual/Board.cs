@@ -11,8 +11,8 @@ public sealed class Board
 
     public Board(byte columns = 8, byte rows = 8)
     {
+        Turns = new List<Piece>();
         Pieces = new Piece[columns, rows];
-        
         TurnTimer = new Timer(ProgressTurn, new AutoResetEvent(true), 0, 10000);
     }
     
@@ -120,7 +120,12 @@ public sealed class Board
             return false;
         }
         
-        
+        // If we are landing on an occupied space, we are taking that piece
+        var taking = Pieces[toRow, toColumn];
+        if (taking is not null)
+        {
+            
+        }
 
         return true;
     }
