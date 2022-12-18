@@ -65,18 +65,32 @@
     let CANVASES = []
 
     const serverPackets = {
+        // Info sent only to the player
         Canvases: 0,
+        Token: 1,
+
+        // Relayed information from other clients
+        Move: 2,
+        Spawn: 3,
+        Death: 4,
+        Chat: 5,
+        
+        // Actions and responses
+        RejectMove: 6,
+        RejectSpawn: 7,
+        RejectChat: 8,
+        FriendRequest: 9,
+        FriendAdded: 10,
+        FriendRemoved: 11,
+        FriendsOnline: 12
+    }
+
+    const clientPackets = {
+        Spawn: 0,
         Move: 1,
-        Reject: 2,
-        Death: 3,
-        RemovePiece: 4,
-        AddPiece: 5,
-        Chat: 6,
-        FriendRequest: 7,
-        FriendAdded: 8,
-        FriendRemoved: 9,
-        FriendsOnline: 10,
-        Token: 11
+        Chat: 2,
+        RequestFriend: 3,
+        AcceptFriend: 4
     }
 
     const pieces = {

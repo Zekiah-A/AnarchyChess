@@ -1,6 +1,7 @@
 ﻿using System.Buffers.Binary;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using AnarchyChess.Server.Packets;
 using AnarchyChess.Server.Virtual;
 using UnbloatDB;
@@ -25,12 +26,14 @@ public sealed class ServerInstance
 
     public async Task Start()
     {
-        app.ClientConnected += (sender, args) =>
+        // Encode entire virtual map to JSON to get client up to date
+        app.ClientConnected += async (sender, args) =>
         {
-            var buffer = new byte[0];
-            buffer[0] = 1;
-
-            app.SendAsync(args.Client, buffer);
+            using var stream = new MemoryStream(); 
+            await JsonSerializer.SerializeAsync(stream, VirtualMap);
+            await stream.FlushAsync();
+            
+            await app.SendAsync(args.Client, stream.ToArray());
         };
 
         app.MessageReceived += (sender, args) =>
@@ -47,6 +50,7 @@ public sealed class ServerInstance
             {
                 case ClientPackets.Spawn:
                 {
+                    //TODO: Implement token re-authentication
                     if (Clients.TryGetValue(args.Client, out var clientPiece))
                     {
                         RemoveClient(clientPiece);
@@ -57,15 +61,18 @@ public sealed class ServerInstance
                     var board = VirtualMap.Boards[data[1], data[2]];
                     if (board is null)
                     {
-                        app.SendAsync(args.Client, new [] { (byte) ServerPackets.Reject });
+                        app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
                         return;
                     }
-
-                    var token = Guid.NewGuid().ToString();
-
+                    
                     // Add piece to board
-                    var piece = new Piece(token, (PieceType) data[5], board);
-                    board.Pieces[data[3], data[4]] = piece;
+                    var token = Guid.NewGuid().ToString();
+                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6], board);
+                    if (!board.TrySpawnPiece(piece, data[3], data[4]))
+                    {
+                        app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
+                    }
+                    
                     Clients.Add(args.Client, piece);
                     
                     // Send the client back their token so that they can reconnect to the same piece
@@ -78,7 +85,7 @@ public sealed class ServerInstance
                     
                     // Send to all connected clients
                     var sendBuffer = new byte[6];
-                    sendBuffer[0] = (byte) ServerPackets.AddPiece;
+                    sendBuffer[0] = (byte) ServerPackets.Spawn;
                     SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
                     
                     foreach (var client in app.Clients)
@@ -94,93 +101,50 @@ public sealed class ServerInstance
                         return;
                     }
                     
-                    // Check if move is valid - does not guarantee that it is completely allowed on board though
-                    // For example, a diagonal pawn move by 1 space is valid, but only if they are moving onto a space
-                    // That is occupied by another piece. On the board, white moves "up", while black moves "down"
+                    // Record previous move packet, board row and board column, before manipulating piece position.
+                    var previousMove = SerialisePiecePacket(clientPiece);
                     var boardRow = data[1];
                     var boardColumn = data[2];
-                    var row = data[3];
-                    var column = data[4];
-
-                    var moveColumns = data[1] - 1;
-                    var moveRows = data[2] - 1;
-
-                    var valid = false;
-                    switch (clientPiece.Type)
+                    
+                    // Attempt move piece, reject if move is invalid 
+                    if (!clientPiece.Board.TryMovePiece(clientPiece, boardRow, boardColumn))
                     {
-                        case PieceType.Bishop:
-                            if (moveRows is < 8 and > -8 && moveColumns is < 8 and > -8 && moveColumns == moveRows)
-                            {
-                                valid = true;
-                            }
-                            break;
-                        case PieceType.King:
-                            valid = moveRows switch
-                            {
-                                1 or -1 when moveColumns is 0 => true,
-                                0 when moveColumns is 1 or -1 => true,
-                                1 or -1 when moveColumns is 1 or -1 && moveColumns == moveRows => true,
-                                _ => valid
-                            };
-                            break;
-                        case PieceType.Knight:
-                            valid = moveRows switch
-                            {
-                                0 when moveColumns is < 8 and > -8 => true,
-                                < 8 and > -8 when moveColumns is 0 => true,
-                                _ => valid
-                            };
-                            break;
-                        case PieceType.Pawn:
-                            valid = moveRows switch
-                            {
-                                -1 or 0 or 1 when moveColumns is 1 && clientPiece.Colour == PieceColour.Black => true,
-                                -1 or 0 or 1 when moveColumns is -1 && clientPiece.Colour == PieceColour.White => true,
-                                _ => valid
-                            };
-                            break;
-                        case PieceType.Queen:
-                            valid = moveRows switch
-                            {
-                                0 when moveColumns is < 8 and > -8 => true,
-                                0 when moveColumns is < 8 and > -8 => true,
-                                < 8 and > -8 when moveColumns is < 8 and > -8 && moveColumns == moveRows => true,
-                                _ => valid
-                            };
-                            break;
-                        case PieceType.Rook:
-                            valid = moveRows switch
-                            {
-                                2 or -2 when moveColumns is 1 or -1 => true,
-                                1 or -1 when moveColumns is 2 or -2 => true,
-                                _ => valid
-                            };
-                            break;
-                    }
-
-                    if (!valid)
-                    {
-                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.Reject});
+                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
                     }
+
+                    // Send to all connected clients
+                    var sendBuffer = new byte[9];
+                    sendBuffer[0] = (byte) ServerPackets.Spawn;
+                    SerialiseMovePacket(clientPiece, previousMove).CopyTo(sendBuffer, 1);
                     
-                    // Check the effects of making move on board
-                    
+                    foreach (var client in app.Clients)
+                    {
+                        app.SendAsync(client, sendBuffer.ToArray());
+                    }
                     break;
                 }
                 case ClientPackets.Chat:
-                    if (data.Length < 250)
+                {
+                    if (data.Length > 250)
                     {
+                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
                         return;
                     }
-                    
-                    
+
+                    foreach (var client in app.Clients)
+                    {
+                        app.SendAsync(client, data.ToArray());
+                    }
                     break;
+                }
             }
         };
 
         app.ClientDisconnected += (sender, args) =>
         {
+            // TODO: We do not necessarily have to kill players off on disconnect, for example, on server shutdown,
+            // TODO: players should be able to reauthenticate into their piece via the token saved in localstorage.
             if (Clients.TryGetValue(args.Client, out var clientPiece))
             {
                 RemoveClient(clientPiece);
@@ -196,7 +160,7 @@ public sealed class ServerInstance
                         
         // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
         var buffer = new byte[5];
-        buffer[0] = (byte) ServerPackets.RemovePiece;
+        buffer[0] = (byte) ServerPackets.Death;
         SerialisePiecePacket(clientPiece).CopyTo(buffer, 1);
 
         foreach (var client in app.Clients)
@@ -207,13 +171,33 @@ public sealed class ServerInstance
     
     private byte[] SerialisePiecePacket(Piece piece)
     {
-        var buffer = new byte[5];
-        buffer[0] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
-        buffer[1] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
-        buffer[2] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
-        buffer[3] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;
-        buffer[4] = (byte) piece.Type;
+        var buffer = new []
+        {
+            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
+            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
+            (byte) piece.Type,
+            (byte) piece.Colour,
+        };
+        
+        return buffer;
+    }
 
+    private byte[] SerialiseMovePacket(Piece piece, IReadOnlyList<byte> previousMove)
+    {
+        var buffer = new[]
+        {
+            previousMove[0],
+            previousMove[1],
+            previousMove[2],
+            previousMove[3],
+            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
+            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
+        };
+        
         return buffer;
     }
 }
