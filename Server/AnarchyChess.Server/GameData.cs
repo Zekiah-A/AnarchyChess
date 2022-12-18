@@ -1,3 +1,6 @@
 namespace AnarchyChess.Server;
 
-public record GameData();
+public record GameData
+(
+        
+);

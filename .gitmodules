@@ -1,0 +1,7 @@
+[submodule "Server/WatsonWebsocketPlus"]
+	path = Server/WatsonWebsocketPlus
+	url = https://github.com/Zekiah-A/WatsonWebsocketPlus.git
+	branch = plus
+[submodule "Server/UnbloatDB"]
+	path = Server/UnbloatDB
+	url = https://github.com/Zekiah-A/UnbloatDB

@@ -6,4 +6,11 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\WatsonWebsocketPlus\src\WatsonWebsocket\WatsonWebsocket.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\UnbloatDB\UnbloatDB\UnbloatDB.csproj" />
+    </ItemGroup>
 </Project>
