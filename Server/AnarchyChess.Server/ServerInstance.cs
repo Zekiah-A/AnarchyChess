@@ -94,7 +94,7 @@ public sealed class ServerInstance
                         return;
                     }
                     
-                    // Check if move is valid - does not guarentee that it is completely allowed on board though
+                    // Check if move is valid - does not guarantee that it is completely allowed on board though
                     // For example, a diagonal pawn move by 1 space is valid, but only if they are moving onto a space
                     // That is occupied by another piece. On the board, white moves "up", while black moves "down"
                     var boardRow = data[1];
@@ -109,38 +109,52 @@ public sealed class ServerInstance
                     switch (clientPiece.Type)
                     {
                         case PieceType.Bishop:
-                            if (moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && moveColumns == moveRows)
+                            if (moveRows is < 8 and > -8 && moveColumns is < 8 and > -8 && moveColumns == moveRows)
                             {
                                 valid = true;
                             }
                             break;
                         case PieceType.King:
-                            if (moveRows is 1 or -1 && moveColumns is 0) valid = true;
-                            else if (moveRows is 0 && moveColumns is 1 or -1) valid = true;
-                            else if (moveRows is 1 or -1 && moveColumns is 1 or -1 && moveColumns == moveRows)
+                            valid = moveRows switch
                             {
-                                valid = true;
-                            }
+                                1 or -1 when moveColumns is 0 => true,
+                                0 when moveColumns is 1 or -1 => true,
+                                1 or -1 when moveColumns is 1 or -1 && moveColumns == moveRows => true,
+                                _ => valid
+                            };
                             break;
                         case PieceType.Knight:
-                            if (moveRows is 0 && moveColumns is < 8 and > -8) valid = true;
-                            else if (moveColumns is 0 && moveRows is < 8 and > -8) valid = true;
+                            valid = moveRows switch
+                            {
+                                0 when moveColumns is < 8 and > -8 => true,
+                                < 8 and > -8 when moveColumns is 0 => true,
+                                _ => valid
+                            };
                             break;
                         case PieceType.Pawn:
-                            if (moveRows is -1 or 0 or 1 && moveColumns is 1 && clientPiece.Colour == PieceColour.Black) valid = true;
-                            else if (moveRows is -1 or 0 or 1 && moveColumns is -1 && clientPiece.Colour == PieceColour.White) valid = true;
+                            valid = moveRows switch
+                            {
+                                -1 or 0 or 1 when moveColumns is 1 && clientPiece.Colour == PieceColour.Black => true,
+                                -1 or 0 or 1 when moveColumns is -1 && clientPiece.Colour == PieceColour.White => true,
+                                _ => valid
+                            };
                             break;
                         case PieceType.Queen:
-                            if (moveRows == 0 && moveColumns is < 8 and > -8) valid = true;
-                            else if (moveRows is 0 && moveColumns is < 8 and > -8) valid = true;
-                            else if (moveRows is < 8 and > -8 && moveColumns is < 8 and > -8 && moveColumns == moveRows)
+                            valid = moveRows switch
                             {
-                                valid = true;
-                            }
+                                0 when moveColumns is < 8 and > -8 => true,
+                                0 when moveColumns is < 8 and > -8 => true,
+                                < 8 and > -8 when moveColumns is < 8 and > -8 && moveColumns == moveRows => true,
+                                _ => valid
+                            };
                             break;
                         case PieceType.Rook:
-                            if (moveRows is 2 or -2 && moveColumns is 1 or -1) valid = true;
-                            else  if (moveColumns is 2 or -2 && moveRows is 1 or -1) valid = true;
+                            valid = moveRows switch
+                            {
+                                2 or -2 when moveColumns is 1 or -1 => true,
+                                1 or -1 when moveColumns is 2 or -2 => true,
+                                _ => valid
+                            };
                             break;
                     }
 
