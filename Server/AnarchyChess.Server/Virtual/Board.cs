@@ -1,6 +1,6 @@
 namespace AnarchyChess.Server.Virtual;
 
-public class Board
+public sealed class Board
 {
     public Piece?[,] Pieces { get; set; }
     

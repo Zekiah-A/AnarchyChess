@@ -5,7 +5,7 @@ namespace AnarchyChess.Server.Virtual;
 /// <summary>
 /// The chess boards are placed on a map, 
 /// </summary>
-public class Map
+public sealed class Map
 {
     public Board?[,] Boards;
 

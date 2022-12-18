@@ -12,5 +12,6 @@ public enum ServerPackets
     FriendRequest,
     FriendAdded,
     FriendRemoved,
-    FriendsOnline
+    FriendsOnline,
+    Token
 }
