@@ -198,6 +198,7 @@ public sealed class ServerInstance
         }
     }
     
+    // TODO: Switch packets to use "column, row" (x, y) instead of "row, column" for consistency.
     private byte[] SerialisePiecePacket(Piece piece)
     {
         var buffer = new []

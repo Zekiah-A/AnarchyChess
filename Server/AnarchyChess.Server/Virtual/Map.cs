@@ -12,7 +12,7 @@ public sealed class Map
     public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan? period = null)
     {
         Boards = new Board[columns, rows];
-        Boards.Fill(new Board(pieceRows, pieceColumns, period));
+        Boards.Fill(new Board(pieceColumns, pieceRows, period));
     }
 
     public void ShiftAll(int directionX, int directionY)

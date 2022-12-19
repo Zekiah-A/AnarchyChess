@@ -1,8 +1,8 @@
 namespace AnarchyChess.Server;
 
 public static class Extensions
-{
-    public static (int Row, int Column) CoordinatesOf<T>(this T[,] matrix, T value)
+{ 
+    public static (int Column, int Row) CoordinatesOf<T>(this T[,] matrix, T value)
     {
         var width = matrix.GetLength(0);
         var height = matrix.GetLength(1);

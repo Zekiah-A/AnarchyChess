@@ -39,12 +39,12 @@ public sealed class Board
     // Spawning piece is instant, but their turn to move is last
     public bool TrySpawnPiece(Piece piece, int row, int column)
     {
-        if (Pieces[row, column] is null)
+        if (Pieces[column, row] is null)
         {
             return false;
         }
         
-        Pieces[row, column] = piece;
+        Pieces[column, row] = piece;
         Turns.Add(piece);
         return true;
     }
@@ -56,67 +56,67 @@ public sealed class Board
             return false;
         }
         
-        var row = Pieces.CoordinatesOf(piece).Row;
         var column = Pieces.CoordinatesOf(piece).Column;
-        var moveRows = toRow - row;
-        var moveColumns = toColumn - column;
+        var row = Pieces.CoordinatesOf(piece).Row;
+        var moveColumns = toRow - row;
+        var moveRows = toColumn - column;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
         switch (piece.Type)
         {
             case PieceType.Bishop:
-                valid = moveRows is < 8 and > -8 && moveColumns is < 8 and > -8 && moveColumns == moveRows;
+                valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && moveRows == moveColumns;
                 
                 
                 break;
             case PieceType.King:
-                valid = moveRows switch
+                valid = moveColumns switch
                 {
-                    1 or -1 when moveColumns is 0 => true,
-                    0 when moveColumns is 1 or -1 => true,
-                    1 or -1 when moveColumns is 1 or -1 && moveColumns == moveRows => true,
+                    1 or -1 when moveRows is 0 => true,
+                    0 when moveRows is 1 or -1 => true,
+                    1 or -1 when moveRows is 1 or -1 && moveRows == moveColumns => true,
                     _ => valid
                 };
                 
                 // TODO: Add ability for king to be in check
                 break;
             case PieceType.Knight:
-                valid = moveRows switch
+                valid = moveColumns switch
                 {
-                    0 when moveColumns is < 8 and > -8 => true,
-                    < 8 and > -8 when moveColumns is 0 => true,
+                    0 when moveRows is < 8 and > -8 => true,
+                    < 8 and > -8 when moveRows is 0 => true,
                     _ => valid
                 };
                 break;
             case PieceType.Pawn:
-                valid = moveRows switch
+                valid = moveColumns switch
                 {
-                    0 when moveColumns is 1 && piece.Colour == PieceColour.White && Pieces[toRow, toColumn] is null => true,
-                    0 when moveColumns is -1 && piece.Colour == PieceColour.Black && Pieces[toRow, toColumn] is null => true,
-                    1 or -1 when moveColumns is 1 && piece.Colour == PieceColour.White && Pieces[toRow, toColumn] is not null => true,
-                    1 or -1 when moveColumns is -1 && piece.Colour == PieceColour.Black && Pieces[toRow, toColumn] is not null => true,
+                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is null => true,
+                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is null => true,
+                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is not null => true,
+                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is not null => true,
                     _ => valid
                 };
 
                 
                 break;
             case PieceType.Queen:
-                valid = moveRows switch
+                valid = moveColumns switch
                 {
-                    0 when moveColumns is < 8 and > -8 => true,
-                    0 when moveColumns is < 8 and > -8 => true,
-                    < 8 and > -8 when moveColumns is < 8 and > -8 && moveColumns == moveRows => true,
+                    0 when moveRows is < 8 and > -8 => true,
+                    0 when moveRows is < 8 and > -8 => true,
+                    < 8 and > -8 when moveRows is < 8 and > -8 && moveRows == moveColumns => true,
                     _ => valid
                 };
                 
                 
                 break;
             case PieceType.Rook:
-                valid = moveRows switch
+                valid = moveColumns switch
                 {
-                    2 or -2 when moveColumns is 1 or -1 => true,
-                    1 or -1 when moveColumns is 2 or -2 => true,
+                    2 or -2 when moveRows is 1 or -1 => true,
+                    1 or -1 when moveRows is 2 or -2 => true,
                     _ => valid
                 };
                 
@@ -130,7 +130,7 @@ public sealed class Board
         }
         
         // If we are landing on an occupied space, we are taking that piece
-        var taking = Pieces[toRow, toColumn];
+        var taking = Pieces[toColumn, toRow];
         if (taking is not null)
         {
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
