@@ -32,8 +32,7 @@ public sealed class Board
         
         CurrentTurn++;
 
-        var currentPosition = Pieces.CoordinatesOf(Turns[CurrentTurn]);
-        TurnChangedEvent.Invoke(this, new TurnChangedEventArgs(CurrentTurn, (byte) currentPosition.Row, (byte) currentPosition.Column));
+        TurnChangedEvent.Invoke(this, new TurnChangedEventArgs(CurrentTurn, Turns[CurrentTurn]));
     }
     
     // Spawning piece is instant, but their turn to move is last

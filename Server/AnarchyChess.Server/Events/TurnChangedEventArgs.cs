@@ -5,14 +5,12 @@ namespace AnarchyChess.Server.Events;
 public class TurnChangedEventArgs : EventArgs
 {
     public int Turn { get; }
-    public byte CurrentsRow { get; }
-    public byte CurrentColumn { get; }
+    public Piece CurrentPiece { get; }
     
-    public TurnChangedEventArgs(int turn, byte currentsRow, byte currentColumn)
+    public TurnChangedEventArgs(int turn, Piece currentPiece)
     {
         Turn = turn;
-        CurrentsRow = currentsRow;
-        CurrentColumn = currentColumn;
+        CurrentPiece = currentPiece;
     }
     
 }

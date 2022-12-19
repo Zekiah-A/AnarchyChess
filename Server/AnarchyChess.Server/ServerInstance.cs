@@ -1,12 +1,9 @@
 ﻿using System.Buffers.Binary;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
 using AnarchyChess.Server.Virtual;
-using UnbloatDB;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
@@ -186,67 +183,87 @@ public sealed class ServerInstance
         // Delete piece from that board
         var pieceCoordinates = clientPiece.Board.Pieces.CoordinatesOf(clientPiece);
         clientPiece.Board.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;
-                        
+
         // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
-        var buffer = new byte[5];
-        buffer[0] = (byte) ServerPackets.Death;
-        SerialisePiecePacket(clientPiece).CopyTo(buffer, 1);
+        var killBuffer = new byte[6];
+        killBuffer[0] = (byte) ServerPackets.PieceKilled;
+        SerialisePositionPacket(clientPiece).CopyTo(killBuffer, 1);
 
         foreach (var client in app.Clients)
         {
-            app.SendAsync(client, buffer.ToArray());
+            app.SendAsync(client, killBuffer.ToArray());
         }
     }
     
-    // TODO: Switch packets to use "column, row" (x, y) instead of "row, column" for consistency.
-    private byte[] SerialisePiecePacket(Piece piece)
+    private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
     {
-        var buffer = new []
+        var killBuffer = new byte[10];
+        killBuffer[0] = (byte) ServerPackets.PieceKilled;
+        SerialisePositionPacket(args.Killed).CopyTo(killBuffer, 1);
+        SerialisePositionPacket(args.Killer).CopyTo(killBuffer, 5);
+        
+        foreach (var client in app.Clients)
+        {
+            app.SendAsync(client, killBuffer.ToArray());
+        }
+    }
+
+    private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
+    {
+        var turnBuffer = new byte[9];
+        turnBuffer[0] = (byte) ServerPackets.TurnChanged;
+        BinaryPrimitives.WriteUInt32BigEndian(turnBuffer.AsSpan()[1..], (uint) args.Turn);
+        SerialisePositionPacket(args.CurrentPiece).CopyTo(turnBuffer, 5);
+        
+        foreach (var client in app.Clients)
+        {
+            app.SendAsync(client, turnBuffer.ToArray());   
+        }
+    }
+
+    // TODO: Switch packets to use "column, row" (x, y) instead of "row, column" for consistency.
+
+    /// <summary>
+    /// Length = 4
+    /// </summary>
+    private byte[] SerialisePositionPacket(Piece piece)
+    {
+        return new[]
         {
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
-            (byte) piece.Type,
-            (byte) piece.Colour
         };
+    }
+    
+    /// <summary>
+    /// Length = 6
+    /// </summary>
+    private byte[] SerialisePiecePacket(Piece piece)
+    {
+        var buffer = new byte[6];
+        
+        SerialisePositionPacket(piece).CopyTo(buffer, 0);
+        buffer[4] = (byte) piece.Type;
+        buffer[5] = (byte) piece.Colour;
         
         return buffer;
     }
 
-    private byte[] SerialiseMovePacket(Piece piece, IReadOnlyList<byte> previousPosition)
+    /// <summary>
+    /// Length = 8
+    /// </summary>
+    /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket".</param>
+    private byte[] SerialiseMovePacket(Piece piece, byte[] previousPosition)
     {
-        var buffer = new[]
-        {
-            previousPosition[0],
-            previousPosition[1],
-            previousPosition[2],
-            previousPosition[3],
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column
-        };
-        
+        var buffer = new byte[8];
+        previousPosition.CopyTo(buffer, 0);
+        buffer[4] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
+        buffer[5] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
+        buffer[6] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
+        buffer[7] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;
         return buffer;
     }
 
-    private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
-    {
-        
-    }
-
-    private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
-    {
-        var buffer = new Span<byte>(new byte[7]);
-        buffer[0] = (byte) ServerPackets.TurnChanged;
-        BinaryPrimitives.WriteUInt32BigEndian(buffer[1..], (uint) args.Turn);
-        buffer[5] = args.CurrentsRow;
-        buffer[6] = args.CurrentColumn;
-
-        foreach (var client in app.Clients)
-        {
-            app.SendAsync(client, buffer.ToArray());   
-        }
-    }
 }

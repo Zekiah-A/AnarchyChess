@@ -9,11 +9,11 @@ public enum ServerPackets
     // Relayed information from other clients
     Move,
     Spawn,
-    Death,
     Chat,
-    
-    // Actions and responses
+    PieceKilled,
     TurnChanged,
+
+    // Actions and responses
     RejectMove,
     RejectSpawn,
     RejectChat,

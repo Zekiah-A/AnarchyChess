@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body>
+<body onmousedown="this['dragging'] = true" onmousemove="onDragBody(event)" onmouseup="this['dragging'] = false">
     <div id="board">
         <!-- Parent element that contains all canvases -->
     </div>
@@ -84,11 +84,11 @@
         // Relayed information from other clients
         Move: 2,
         Spawn: 3,
-        Death: 4,
-        Chat: 5,
-        
-        // Actions and responses
+        Chat: 4,
+        PieceKilled: 5,
         TurnChanged: 6,
+
+        // Actions and responses
         RejectMove: 7,
         RejectSpawn: 8,
         RejectChat: 9,
@@ -181,15 +181,8 @@
 
                     createAllCanvases()
                     break
+                case 
                 case serverPackets.Move:
-                    break
-                case serverPackets.Reject:
-                    break
-                case serverPackets.RemovePiece:
-                    break
-                case serverPackets.RemovePiece:
-                    break
-                case serverPackets.AddPiece:
                     break
                 case serverPackets.Chat:
                     break
@@ -268,6 +261,10 @@
 
             shift = !shift
         }
+    }
+
+    function onDragBody(event) {
+        
     }
 
     let piecePathWorker = new Worker("piecePathWorker.js")
