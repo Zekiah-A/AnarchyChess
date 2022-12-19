@@ -19,9 +19,33 @@
     </div>
 
     <div class="hud game-actions">
-        <p>Chat</p>
+        <p onclick="
+            if (chatPanel.getAttribute('closed'))
+                chatPanel.removeAttribute('closed')
+            else
+                chatPanel.setAttribute('closed', true)
+        ">Chat</p>
         <p>Settings</p>
         <p>Help</p>
+    </div>
+
+    <div id="chatPanel" closed="true" class="info-panel">
+        <div id="chatMessages">
+            <span>>> Chat messages will appear here</span>
+            <span deathevent>💀 Pawn killed at (1, 1) A1</span>
+            <span spawnevent>✨ Pawn spawned at (1, 1) A1</span>
+        </div>
+        <input type="text" maxlength="250" onkeydown="
+            if (event.key == 'Enter') sendChatMessage(this.value)
+        " />
+    </div>
+        
+    </div>
+
+    <div class="info-panel" style="left: 0px; top: 68px;">
+        <p>Zoom: <span id="zoomIndicator">1.0</span>x</p>
+        <p>Board: <span id="boardIndicator">0, 0</span></p>
+        <p>Position: <span id="boardIndicator">A1</span></p>
     </div>
     
     <div id="mainMenu" class="menu main-menu">
@@ -73,13 +97,19 @@
         <h1>Anarchy Chess</h1>
         <h2>⚠️This game is an early alpha, expect bugs</h2>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
-        <input value="Proceed" type="button" style="width: 300px;align-self: center;" onclick="warningMenu.remove()">
-    </div>
+        <input value="Proceed" type="button" style="width: 300px;align-self: center;" onclick="
+            warningMenu.animate([
+                { transform: 'scale(1)' },
+                { opacity: '1' },
+                { transform: 'scale(1.1)' },
+                { opacity: '0' },
+            ], {
+                duration: 1000,
+                iterations: 1
+            })
 
-    <div class="info-panel" style="left: 0px; top: 68px;">
-        <p>Zoom: <span id="zoomIndicator">1.0</span>x</p>
-        <p>Board: <span id="boardIndicator">0, 0</span></p>
-        <p>Position: <span id="boardIndicator">A1</span></p>
+            window.setTimeout(() => { warningMenu.remove() }, 600)
+        ">
     </div>
 </body>
 <script>
@@ -137,6 +167,9 @@
     const piecePaths = []
 </script>
 <script>
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+
     let ws = null
     let map = null
     let dragging = false
@@ -177,7 +210,7 @@
 
         ws.onmessage = ({data}) => {
             switch (data[0]) {
-                case serverPackets.Canvases:                   
+                case serverPackets.Canvases: {
                     let boardsRows, boardsColumns, pieceRows, pieceColumns
                     [boardsRows, boardsColumns, pieceRows, pieceColumns] = data.slice(1)
 
@@ -197,10 +230,16 @@
 
                     createAllCanvases()
                     break
-                case serverPackets.Move:
+                }
+                case serverPackets.Move: {
                     break
-                case serverPackets.Chat:
+                }
+                case serverPackets.Chat: {
+                    let el = document.createElement("span")
+                    el.textContent = ">> " + decoder.decode(data.slice(1))
+                    chatMessages.appendChild(el)
                     break
+                }
                 /*
                 case serverPackets.FriendRequest:
                     break
@@ -217,6 +256,13 @@
         ws.onclose = (event) => {
 
         }
+    }
+
+    function sendChatMessage(message) {
+        let encoded = encoder.encode("\0x00" + message)
+        encoded[0] = serverPackets.Chat
+        ws.send(encoded)
+        console.log("sent")
     }
 
     function createAllCanvases() {
@@ -296,9 +342,15 @@
         board.style.transform = `scale(${zoom})`
     }
 
-    let piecePathWorker = new Worker("piecePathWorker.js")
-    piecePathWorker.onmessage = (event) => piecePaths.push(event.data)
-
-    connect(localStorage.address || "wss://server.poemanthology.org:8083")
+    try {
+        let piecePathWorker = new Worker("piecePathWorker.js")
+        piecePathWorker.onmessage = (event) => piecePaths.push(event.data)
+    }
+    catch(e) {
+        console.error("Fatal worker error, can not load pieces.")
+    }
+    
+    connect("ws://localhost:8087")
+    //connect(localStorage.address || "wss://server.poemanthology.org:8083")
 </script>
 </html>

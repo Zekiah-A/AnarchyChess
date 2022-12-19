@@ -5,6 +5,7 @@
     --ui-input-hover: #d2d2d5;
     --ui-hilight: #61a6ff;
     --ui-hilight-transparent: #61a6ff85;
+    --ui-special-transparent: #8bff6185;
     --ui-info-transparent: #0009;
 }
 
@@ -195,11 +196,16 @@ Cursed fade out when there is more to display effect - we disable for now
 }
 
 .info-panel {
+    z-index: 2;
     position: absolute;
     width: 256px;
     height: 96px;
     color: white;
     padding: 8px;
+    top: 68px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
 }
 
 .info-panel > * {
@@ -219,6 +225,35 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     backdrop-filter: blur(10px);
 }
 */
+
+#chatPanel {
+    right: 0px;
+    background: var(--ui-info-transparent);
+    width: 340px;
+    height: 160px;
+    row-gap: 4px;
+    transition: .2s right, .2s opacity;
+}
+
+#chatPanel[closed] {
+    right: -340px;
+    opacity: 0;
+}
+
+#chatPanel > div {
+    flex-grow: 1;
+    overflow-y: scroll;
+}
+
+#chatPanel > div > span[deathevent] {
+    background-color: var(--ui-hilight-transparent);
+    display: block;
+}
+
+#chatPanel > div > span[spawnevent] {
+    background-color: var(--ui-special-transparent);
+    display: block;
+}
 
 #warningMenu {
     z-index: 3;
@@ -243,7 +278,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     width: 100%;
     left: 0px;
     top: 0px;
-    opacity: 0.1;
+    opacity: 0.25;
     content: " ";
     background: url(https://upload.wikimedia.org/wikipedia/commons/6/66/Chess_gameboard..jpg);
     background-repeat: no-repeat;

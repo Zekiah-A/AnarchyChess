@@ -24,14 +24,12 @@ public sealed class Board
     
     private void ProgressTurn(object? stateInfo)
     {
-        if (CurrentTurn == Turns.Count - 1)
+        if (Turns.Count == 0)
         {
-            CurrentTurn = 0;
             return;
         }
-        
-        CurrentTurn++;
 
+        CurrentTurn = CurrentTurn == Turns.Count - 1 ? 0 : CurrentTurn + 1;
         TurnChangedEvent.Invoke(this, new TurnChangedEventArgs(CurrentTurn, Turns[CurrentTurn]));
     }
     
