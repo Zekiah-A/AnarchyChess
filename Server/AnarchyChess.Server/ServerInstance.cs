@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
 using AnarchyChess.Server.Virtual;
 using UnbloatDB;
@@ -25,6 +26,12 @@ public sealed class ServerInstance
         map ??= new Map();
         VirtualMap = map;
         app = new WatsonWsServer(port, ssl, certificate,  key, "localhost");
+
+        foreach (var board in VirtualMap.Boards)
+        {
+            board.PieceKilledEvent += OnPieceKilled;
+            board.TurnChangedEvent += OnTurnChanged;
+        }
     }
 
     public async Task StartAsync()
@@ -206,14 +213,14 @@ public sealed class ServerInstance
         return buffer;
     }
 
-    private byte[] SerialiseMovePacket(Piece piece, IReadOnlyList<byte> previousMove)
+    private byte[] SerialiseMovePacket(Piece piece, IReadOnlyList<byte> previousPosition)
     {
         var buffer = new[]
         {
-            previousMove[0],
-            previousMove[1],
-            previousMove[2],
-            previousMove[3],
+            previousPosition[0],
+            previousPosition[1],
+            previousPosition[2],
+            previousPosition[3],
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
@@ -221,5 +228,24 @@ public sealed class ServerInstance
         };
         
         return buffer;
+    }
+
+    private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
+    {
+        
+    }
+
+    private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
+    {
+        var buffer = new Span<byte>(new byte[7]);
+        buffer[0] = (byte) ServerPackets.TurnChanged;
+        BinaryPrimitives.WriteUInt32BigEndian(buffer[1..], (uint) args.Turn);
+        buffer[5] = args.CurrentsRow;
+        buffer[6] = args.CurrentColumn;
+
+        foreach (var client in app.Clients)
+        {
+            app.SendAsync(client, buffer.ToArray());   
+        }
     }
 }

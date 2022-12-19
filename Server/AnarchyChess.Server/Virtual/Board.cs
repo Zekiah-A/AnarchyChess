@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Threading;
+using AnarchyChess.Server.Events;
+
 namespace AnarchyChess.Server.Virtual;
 
 public sealed class Board
@@ -8,6 +10,8 @@ public sealed class Board
     public List<Piece> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
+    public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
+    public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
     public Board(byte columns = 8, byte rows = 8, TimeSpan? period = null)
     {
@@ -27,6 +31,9 @@ public sealed class Board
         }
         
         CurrentTurn++;
+
+        var currentPosition = Pieces.CoordinatesOf(Turns[CurrentTurn]);
+        TurnChangedEvent.Invoke(this, new TurnChangedEventArgs(CurrentTurn, (byte) currentPosition.Row, (byte) currentPosition.Column));
     }
     
     // Spawning piece is instant, but their turn to move is last
@@ -126,7 +133,7 @@ public sealed class Board
         var taking = Pieces[toRow, toColumn];
         if (taking is not null)
         {
-            
+            PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
 
         return true;

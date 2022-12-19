@@ -13,6 +13,7 @@ public enum ServerPackets
     Chat,
     
     // Actions and responses
+    TurnChanged,
     RejectMove,
     RejectSpawn,
     RejectChat,
