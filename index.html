@@ -10,7 +10,7 @@
 
 <body>
     <div id="board">
-        <canvas id="1" width="512" height="512"></canvas>
+        <!-- Parent element that contains all canvases -->
     </div>
 
     <div class="hud game-title">
@@ -142,6 +142,10 @@
         this.pieces = []
         this.pieceRows = pieceRows
         this.pieceColumns = pieceColumns
+
+        for (let x = 0; x < pieceRows; x++) {
+            this.pieces[x] = []
+        }
     }
 
     function Piece(type, colour) {
@@ -171,6 +175,8 @@
                         // Add piece to board at right place, piece type is at index 4, colour is at index 5 
                         map.boards[mapRow][mapColumn].pieces[boardRow][boardColumn] = new Piece(type, colour)
                     }
+
+                    createAllCanvases()
                     break
                 case serverPackets.Move:
                     break
@@ -208,12 +214,16 @@
                 let el = document.createElement("canvas")
                 el.width = TILE_WIDTH * COLUMNS
                 el.height = TILE_HEIGHT * ROWS
-                el.style.position
+                el.style.position = "absolute"
+                el.style.left = el.width * mapX
+                el.style.top = el.width * mapY
 
                 board.appendChild(el)
-                this.boards[x][y] = new Board(pieceRows, pieceColumns)
             }
         }
+
+        board.querySelectorAll("canvas")
+            .forEach(canvas => drawCheckeredBackground(canvas))
     }
 
     function drawCheckeredBackground(canvas) {

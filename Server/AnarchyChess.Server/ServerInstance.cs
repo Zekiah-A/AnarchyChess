@@ -200,7 +200,7 @@ public sealed class ServerInstance
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
             (byte) piece.Type,
-            (byte) piece.Colour,
+            (byte) piece.Colour
         };
         
         return buffer;
@@ -217,7 +217,7 @@ public sealed class ServerInstance
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column
         };
         
         return buffer;
