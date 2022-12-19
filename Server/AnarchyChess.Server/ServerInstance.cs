@@ -109,7 +109,7 @@ public sealed class ServerInstance
                     
                     foreach (var client in app.Clients)
                     {
-                        app.SendAsync(client, sendBuffer.ToArray());
+                        app.SendAsync(client, sendBuffer);
                     }
                     break;
                 }

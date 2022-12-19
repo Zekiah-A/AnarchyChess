@@ -9,10 +9,10 @@ public sealed class Map
 {
     public Board[,] Boards { get; private set; }
 
-    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8)
+    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan? period = null)
     {
         Boards = new Board[columns, rows];
-        Boards.Fill(new Board(pieceRows, pieceColumns));
+        Boards.Fill(new Board(pieceRows, pieceColumns, period));
     }
 
     public void ShiftAll(int directionX, int directionY)
@@ -20,27 +20,12 @@ public sealed class Map
         
     }
 
-    public void AddBoard(int column, int row)
+    public void AddColumn(int amount)
     {
         
     }
 
-    public void RemoveBoard(int column, int row)
-    {
-        
-    }
-
-    public void MovePiece(Piece piece)
-    {
-        
-    }
-
-    public void DeletePiece(Piece piece)
-    {
-        
-    }
-
-    public void AddPiece(Piece piece)
+    public void AddRow(int amount)
     {
         
     }

@@ -26,7 +26,7 @@
     <div id="mainMenu" class="menu main-menu">
         <h1>Anarchy Chess</h1>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
-        <p>Choose a piece:</p>
+        <p>Choose a piece</p>
         <div class="scroll-picker" id="sc"
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
@@ -41,6 +41,8 @@
             <div>Queen<img src="Assets/queen.svg"></div>
             <div>King<img src="Assets/king.svg"></div>
         </div>
+        <div style="flex-grow: 1;"></div>
+        <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
         <input value="Play" type="button" onclick="
             mainMenu.style.display = 'none';
@@ -58,8 +60,9 @@
     </div>
 </body>
 <script>
-    let HEIGHT = 512
-    let WIDTH = 512
+    // Board width = tile width * columns
+    let TILE_HEIGHT = 64
+    let TILE_WIDTH = 64
     let ROWS = 8
     let COLUMNS = 8
     let CANVASES = []
@@ -93,7 +96,7 @@
         AcceptFriend: 4
     }
 
-    const pieces = {
+    const pieceType = {
         Bishop: 0,
         King: 1,
         Knight: 2,
@@ -101,17 +104,65 @@
         Queen: 4,
         Rook: 5
     }
+
+    const pieceColour = {
+        White: 0,
+        Black: 1
+    }
 </script>
 <script>
     let ws = null
+    let map = null
+
+    function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
+        this.boards = []
+        this.boardsRows = boardsRows
+        this.boardsColumns = boardsColumns
+
+        // Fill board array
+        for (let x = 0; x < boardsRows; x++) {
+            this.boards[x] = []
+
+            for (let y = 0; y < boardsColumns; y++) {
+                this.boards[x][y] = new Board(pieceRows, pieceColumns)
+            }
+        }
+    }
+
+    function Board(pieceRows, pieceColumns) {
+        this.pieces = []
+        this.pieceRows = pieceRows
+        this.pieceColumns = pieceColumns
+    }
+
+    function Piece(type, colour) {
+        this.type = type
+        this.colour = colour
+    }
 
     function connect(address) {
         ws = new WebSocket(address)
 
         ws.onmessage = ({data}) => {
             switch (data[0]) {
-                case serverPackets.Canvases:
-                    console.log("Buffer: " + data)
+                case serverPackets.Canvases:                   
+                    let boardsRows, boardsColumns, pieceRows, pieceColumns
+                    [boardsRows, boardsColumns, pieceRows, pieceColumns] = data.slice(1)
+
+                    board.style.width = (COLUMNS * TILE_WIDTH) + "px"
+                    board.style.height = (ROWS * TILE_HEIGHT) + "px"
+                    
+                    map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
+
+                    let pieceArray = data.slice(5)
+                    for (let i = 0; i < pieceArray.length; i += 6) {
+                        let mapRow, mapColumn, boardRow, boardColumn, type, colour 
+                        [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 6)
+                        
+                        // Add piece to board at right place, piece type is at index 4, colour is at index 5 
+                        map.boards[mapRow][mapColumn].pieces[boardRow][boardColumn] = new Piece(type, colour)
+                    }
+                    break
                 case serverPackets.Move:
                     break
                 case serverPackets.Reject:
@@ -142,26 +193,19 @@
         }
     }
 
-    function createCanvas(x, y, pieces) {
-        
+    function createAllCanvases() {
+        for (let mapX = 0; mapX < map.boardsRows; mapX++) {
+            for (let mapY = 0; mapY < map.boardsColumns; mapY++) {
+                let el = document.createElement("canvas")
+                el.width = TILE_WIDTH * COLUMNS
+                el.height = TILE_HEIGHT * ROWS
+                el.style.position
+
+                board.appendChild(el)
+                this.boards[x][y] = new Board(pieceRows, pieceColumns)
+            }
+        }
     }
-
-    function getPiece(canvas) {
-
-    }
-
-    function setPiece(canvas, piece) {
-
-    }
-
-    function removePiece(canvas) {
-
-    }
-
-    function moveTo() {
-
-    }
-
 
     function drawCheckeredBackground(canvas) {
         const ctx = canvas.getContext("2d", { alpha: false })

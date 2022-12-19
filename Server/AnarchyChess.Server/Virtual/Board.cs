@@ -9,11 +9,13 @@ public sealed class Board
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
 
-    public Board(byte columns = 8, byte rows = 8)
+    public Board(byte columns = 8, byte rows = 8, TimeSpan? period = null)
     {
+        period ??= TimeSpan.FromMilliseconds(1000);
+        
         Turns = new List<Piece>();
         Pieces = new Piece[columns, rows];
-        TurnTimer = new Timer(ProgressTurn, new AutoResetEvent(true), 0, 10000);
+        TurnTimer = new Timer(ProgressTurn, new AutoResetEvent(true), 0, period.Value.Milliseconds);
     }
     
     private void ProgressTurn(object? stateInfo)
@@ -42,7 +44,7 @@ public sealed class Board
     
     public bool TryMovePiece(Piece piece, int toRow, int toColumn)
     {
-        if (Turns[CurrentTurn] != piece)
+        if (Turns[CurrentTurn].Equals(piece))
         {
             return false;
         }
@@ -51,9 +53,9 @@ public sealed class Board
         var column = Pieces.CoordinatesOf(piece).Column;
         var moveRows = toRow - row;
         var moveColumns = toColumn - column;
-
+        
+        // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
-        //TODO: Limit every piece from phasing through another except knight/horse and king.
         switch (piece.Type)
         {
             case PieceType.Bishop:
