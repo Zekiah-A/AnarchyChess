@@ -210,4 +210,9 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     transform: translate(-50%, -50%);
     width: 512px;
     height: 512px;
+    border: 2px solid gray;
+}
+
+#board > canvas {
+    position: absolute;
 }

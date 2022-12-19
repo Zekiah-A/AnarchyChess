@@ -118,6 +118,8 @@
         White: 0,
         Black: 1
     }
+
+    const piecePaths = []
 </script>
 <script>
     let ws = null
@@ -129,10 +131,10 @@
         this.boardsColumns = boardsColumns
 
         // Fill board array
-        for (let x = 0; x < boardsRows; x++) {
+        for (let x = 0; x < boardsColumns; x++) {
             this.boards[x] = []
 
-            for (let y = 0; y < boardsColumns; y++) {
+            for (let y = 0; y < boardsRows; y++) {
                 this.boards[x][y] = new Board(pieceRows, pieceColumns)
             }
         }
@@ -143,7 +145,7 @@
         this.pieceRows = pieceRows
         this.pieceColumns = pieceColumns
 
-        for (let x = 0; x < pieceRows; x++) {
+        for (let x = 0; x < pieceColumns; x++) {
             this.pieces[x] = []
         }
     }
@@ -162,8 +164,8 @@
                     let boardsRows, boardsColumns, pieceRows, pieceColumns
                     [boardsRows, boardsColumns, pieceRows, pieceColumns] = data.slice(1)
 
-                    board.style.width = (COLUMNS * TILE_WIDTH) + "px"
-                    board.style.height = (ROWS * TILE_HEIGHT) + "px"
+                    board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px"
+                    board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px"
                     
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
@@ -209,14 +211,15 @@
     }
 
     function createAllCanvases() {
-        for (let mapX = 0; mapX < map.boardsRows; mapX++) {
-            for (let mapY = 0; mapY < map.boardsColumns; mapY++) {
+        for (let mapX = 0; mapX < map.boardsColumns; mapX++) {
+            for (let mapY = 0; mapY < map.boardsRows; mapY++) {
                 let el = document.createElement("canvas")
                 el.width = TILE_WIDTH * COLUMNS
                 el.height = TILE_HEIGHT * ROWS
-                el.style.position = "absolute"
-                el.style.left = el.width * mapX
-                el.style.top = el.width * mapY
+                el.style.left = (el.width * mapX) + "px"
+                el.style.top = (el.width * mapY) + "px"
+                el.setAttribute("row", mapY)
+                el.setAttribute("column", mapX)
 
                 board.appendChild(el)
             }
@@ -224,6 +227,19 @@
 
         board.querySelectorAll("canvas")
             .forEach(canvas => drawCheckeredBackground(canvas))
+    }
+
+    function drawPieces(mapRow, mapColumn) {
+        const canvas = board.querySelector(`[row="${mapRow}"][column="${mapColumn}"]`)
+        const ctx = canvas.getContext("2d", { alpha: false })
+        const virtualBoard = map.boards[mapRow][mapColumn]
+
+        let type = 1
+        ctx.fillStyle = type == 1 ? "white" : "black"
+
+        let pieceImage = new Image()
+        pieceImage.src = "data:image/svg+xml;base64, " + window.btoa(piecePaths[type])
+        ctx.drawImage(pieceImage, 100, 100, TILE_WIDTH, TILE_HEIGHT)
     }
 
     function drawCheckeredBackground(canvas) {
@@ -252,6 +268,9 @@
             shift = !shift
         }
     }
+
+    let piecePathWorker = new Worker("piecePathWorker.js")
+    piecePathWorker.onmessage = (event) => piecePaths.push(event.data)
 
     connect(localStorage.address || "wss://server.poemanthology.org:8083")
 </script>
