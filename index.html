@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body onmousedown="this['dragging'] = true" onmousemove="onDragBody(event)" onmouseup="this['dragging'] = false">
+<body onmousedown="dragging = true" onmousemove="onDragBody(event)"
+      onwheel="onWheelBody(event)" onmouseup="dragging = false">
     <div id="board">
         <!-- Parent element that contains all canvases -->
     </div>
@@ -66,6 +67,19 @@
             <input value="Spawn by friend" type="button">
             <input value="Random location" type="button">
         </div>
+    </div>
+
+    <div id="warningMenu">
+        <h1>Anarchy Chess</h1>
+        <h2>⚠️This game is an early alpha, expect bugs</h2>
+        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+        <input value="Proceed" type="button" style="width: 300px;align-self: center;" onclick="warningMenu.remove()">
+    </div>
+
+    <div class="info-panel" style="left: 0px; top: 68px;">
+        <p>Zoom: <span id="zoomIndicator">1.0</span>x</p>
+        <p>Board: <span id="boardIndicator">0, 0</span></p>
+        <p>Position: <span id="boardIndicator">A1</span></p>
     </div>
 </body>
 <script>
@@ -125,6 +139,8 @@
 <script>
     let ws = null
     let map = null
+    let dragging = false
+    let zoom = 1
 
     function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
         this.boards = []
@@ -181,7 +197,6 @@
 
                     createAllCanvases()
                     break
-                case 
                 case serverPackets.Move:
                     break
                 case serverPackets.Chat:
@@ -233,7 +248,7 @@
 
         let pieceImage = new Image()
         pieceImage.src = "data:image/svg+xml;base64, " + window.btoa(piecePaths[type])
-        ctx.drawImage(pieceImage, 100, 100, TILE_WIDTH, TILE_HEIGHT)
+        ctx.drawImage(pieceImage, 0, 0, TILE_WIDTH, TILE_HEIGHT)
     }
 
     function drawCheckeredBackground(canvas) {
@@ -264,7 +279,21 @@
     }
 
     function onDragBody(event) {
-        
+        if (!dragging) return
+        if (event.target != document.body && !board.contains(event.target)) return
+
+        board.style.left = board.offsetLeft + event.movementX + "px"
+        board.style.top = board.offsetTop + event.movementY + "px"
+    }
+
+    function onWheelBody(event) {
+        if (event.target != document.body && !board.contains(event.target)) return
+
+        zoom = event.deltaY < 0 ? zoom + 0.2 : zoom - 0.2
+        zoom = Math.min(Math.max(zoom, 0.4), 2)
+
+        zoomIndicator.textContent = Math.round(zoom * 100) / 100
+        board.style.transform = `scale(${zoom})`
     }
 
     let piecePathWorker = new Worker("piecePathWorker.js")
