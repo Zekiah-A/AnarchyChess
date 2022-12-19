@@ -106,7 +106,7 @@ input[type="button"]:hover {
 
 .main-menu {
     width: min(calc(100% - 28px), 500px);
-    height: min(calc(100% - 28px), 500px);
+    height: min(calc(100% - 28px), 640px);
 }
 
 .spawn-menu {
@@ -115,14 +115,29 @@ input[type="button"]:hover {
     top: 25%;
 }
 
-.spawn-menu > div {
+.dual-options {
     display: flex;
     flex-direction: row;
     column-gap: 8px;
+    width: 100%;
 }
 
-.spawn-menu > div > * {
+.dual-options > * {
     flex-grow: 1;
+    border: 2px solid transparent;
+    transition: border .1s;
+}
+
+.dual-options > *[selected] {
+    border: 2px solid var(--ui-hilight);
+}
+
+.black-white {
+    height: 60px;
+    border-radius: 8px;
+    text-align: center;
+    line-height: 60px;
+    box-shadow: 0px 0px 2px black;
 }
 
 .scroll-picker {
@@ -187,7 +202,6 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     backdrop-filter: blur(10px);
 }
 */
-
 
 #board {
     position: absolute;

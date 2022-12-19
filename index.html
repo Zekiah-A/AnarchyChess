@@ -30,7 +30,7 @@
         <div class="scroll-picker" id="sc"
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
-                let current = this.querySelector('[selected]');
+                this.current = this.querySelector('[selected]');
                 if (current != null) current.removeAttribute('selected');
                 event.target.setAttribute('selected', true);
             ">
@@ -44,6 +44,15 @@
         <div style="flex-grow: 1;"></div>
         <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
+        <div class="dual-options" onclick="
+                this.current = this.querySelector('[selected]');
+                if (current != null) current.removeAttribute('selected');
+                event.target.setAttribute('selected', true);
+            ">
+            <div class="black-white" style="color: white; background-color: black;">Black</div>
+            <div class="black-white" style="color: black; background-color: white;">White</div>
+        </div>
+        <div style="flex-grow: 1;"></div>
         <input value="Play" type="button" onclick="
             mainMenu.style.display = 'none';
             spawnMenu.style.display = 'flex';
@@ -53,7 +62,7 @@
 
     <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
         <h2>Choose your spawn location</h2>
-        <div>
+        <div class="dual-options">
             <input value="Spawn by friend" type="button">
             <input value="Random location" type="button">
         </div>
