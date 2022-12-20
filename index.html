@@ -321,6 +321,8 @@
             tileRow -= ROWS
         }
 
+        // We skip if our shifting resulted in a canvas not even on the board
+        if (canvas == null) return
         const ctx = canvas.getContext("2d", { alpha: false })
 
         if (special) context.fillStyle = "#8bff6185"
@@ -345,23 +347,50 @@
 
                 break
             case pieceTypes.Knight:
+                const rookMoves = [
+                    [ pieceColumn + 1, pieceRow + 2 ],
+                    [ pieceColumn + 2, pieceRow + 1 ],
+                    [ pieceColumn + 2, pieceRow - 1 ],
+                    [ pieceColumn + 1, pieceRow - 2 ],
+                    [ pieceColumn - 1, pieceRow - 2 ],
+                    [ pieceColumn - 2, pieceRow - 1 ],
+                    [ pieceColumn - 2, pieceRow + 1 ],
+                    [ pieceColumn - 1, pieceRow + 2 ]
+                ]
 
+                for (let move of rookMoves) {
+                    if (pieces[move[0]] != null  && pieces[move[0]][move[1]] != null) 
+                        fillTile(canvas, move[0], move[1], true)
+                    else
+                        fillTile(canvas, move[0], move[1])
+                }
                 break
-            case pieceTypes.Pawn:
-                //TODO: Implement correct suggestions for pawn colour variations
-                fillTile(canvas, pieceColumn - 4, pieceRow - 1)
-
-                // Possible diagonal pawn take moves, if there's something there then fill specilal
+            case pieceTypes.Pawn:  //TODO: Implement correct suggestions for pawn colour variations
+                // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
                 if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
                 else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
+                else
+                    fillTile(canvas, pieceColumn, pieceRow - 1)
                 break
             case pieceTypes.Queen:
-
+                
                 break
             case pieceTypes.Rook:
-                
+                for (let x = -COLUMNS / 2 + 1; x < COLUMNS / 2 - 1; x++) {
+                    if (pieces[x] != null  && pieces[x][pieceRow] != null) 
+                        fillTile(canvas, x, pieceRow, true)
+                    else
+                        fillTile(canvas, x, pieceRow)
+                }
+
+                for (let y = -ROWS / 2 + 1; y < ROWS / 2 - 1; y++) {
+                    if (pieces[pieceColumn] != null  && pieces[pieceColumn][y] != null) 
+                        fillTile(canvas, pieceColumn, y, true)
+                    else
+                        fillTile(canvas, pieceColumn, y)
+                }
                 break
         }
     }
@@ -426,7 +455,7 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Pawn)
+        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Knight)
 
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
