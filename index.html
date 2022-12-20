@@ -10,6 +10,11 @@
 
 <body onmousedown="dragging = true" onmousemove="onDragBody(event)"
       onwheel="onWheelBody(event)" onmouseup="dragging = false">
+    
+    <p class="copyright-notice">
+        If you're seeing this, you probably moved the board offscreen. ©Anarchy Chess, Zekiah-A
+    </p>
+
     <div id="board">
         <!-- Parent element that contains all canvases -->
     </div>
@@ -43,9 +48,9 @@
     </div>
 
     <div class="info-panel" style="left: 0px; top: 68px;">
-        <p>Zoom: <span id="zoomIndicator">1.0</span>x</p>
+        <p>Zoom: <span id="zoomIndicator">0.4</span>x</p>
         <p>Board: <span id="boardIndicator">0, 0</span></p>
-        <p>Position: <span id="boardIndicator">A1</span></p>
+        <p>Position: <span id="tileIndicator">A1</span></p>
     </div>
     
     <div id="mainMenu" class="menu main-menu">
@@ -95,7 +100,7 @@
 
     <div id="warningMenu">
         <h1>Anarchy Chess</h1>
-        <h2>⚠️This game is an early alpha, expect bugs</h2>
+        <h2>⚠️ This game is an early alpha, expect bugs</h2>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
         <input value="Proceed" type="button" style="width: 300px;align-self: center;" onclick="
             warningMenu.animate([
@@ -150,7 +155,7 @@
         AcceptFriend: 4
     }
 
-    const pieceType = {
+    const pieceTypes = {
         Bishop: 0,
         King: 1,
         Knight: 2,
@@ -164,16 +169,27 @@
         Black: 1
     }
 
+    // Array of length n of arrays of length 2 (valid positions), of array of length 2 (the ranges that the positions fall in)
+    const validMoves = {
+        [pieceTypes.Bishop]: [[[0, 8], [0, 8]], [[0, -8], [0, -8]], []],
+        [pieceTypes.King]:  [],
+        [pieceTypes.Knight]: [],
+        [pieceTypes.Pawn]: [],
+        [pieceTypes.Queen]: [],
+        [pieceTypes.Rook]: []
+    }
+
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
     const piecePaths = []
 </script>
 <script>
-    const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
 
     let ws = null
     let map = null
     let dragging = false
-    let zoom = 1
+    let zoom = 0.4
 
     function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
         this.boards = []
@@ -273,15 +289,57 @@
                 el.height = TILE_HEIGHT * ROWS
                 el.style.left = (el.width * mapX) + "px"
                 el.style.top = (el.width * mapY) + "px"
-                el.setAttribute("row", mapY)
                 el.setAttribute("column", mapX)
+                el.setAttribute("row", mapY)
 
                 board.appendChild(el)
             }
         }
 
-        board.querySelectorAll("canvas")
-            .forEach(canvas => drawCheckeredBackground(canvas))
+        board.querySelectorAll("canvas").forEach(canvas => {
+            drawCheckeredBackground(canvas)
+
+            canvas.addEventListener("mousedown", onCanvasMouseDown)
+        })
+    }
+
+    function fillTile(context, tileColumn, tileRow, special = false) {
+        ctx.fillStyle = "#8bff6185"
+        context.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+        ctx.fillStyle = "#61a6ff85"
+    }
+
+    function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
+        const ctx = canvas.getContext("2d", { alpha: false })
+        const column = Number(event.target.getAttribute("column"))
+        const row = Number(event.target.getAttribute("row")) 
+        const pieces = map.boards[column][row].pieces
+        //Then we can take
+        /**/
+        ctx.fillStyle = "#61a6ff85"
+
+        switch(pieceType) {
+            case pieceTypes.Bishop:
+                
+                break
+            case pieceTypes.King:
+                break
+            case pieceTypes.Knight:
+                break
+            case pieceTypes.Pawn:
+                fillTile(ctx, pieceColumn, pieceRow - 1)
+
+                // Possible diagonal pawn take moves
+                if (pieces[pieceColumn - 1][pieceRow - 1] != null)
+                    fillTile(ctx, pieceColumn - 1, pieceRow - 1)
+                else if (pieces[pieceColumn - 1][pieceRow + 1] != null)
+                    fillTile(ctx, pieceColumn - 1, pieceRow + 1)
+                break
+            case pieceTypes.Queen:
+                break
+            case pieceTypes.Rook:
+                break
+        }
     }
 
     function drawPieces(mapRow, mapColumn) {
@@ -299,8 +357,6 @@
 
     function drawCheckeredBackground(canvas) {
         const ctx = canvas.getContext("2d", { alpha: false })
-        const blockWidth = canvas.width / 8
-        const blockHeight = canvas.height / 8
 
         ctx.fillStyle = "white"
         ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -310,14 +366,14 @@
             for (let column = 0; column < COLUMNS; column++) {
                 if (column % 2 != 0) continue
 
-                let x = (column + shift) * blockWidth
-                let y = row * blockHeight
-                let gradientBlack = ctx.createLinearGradient(x, y, x + blockWidth, y + blockHeight)
+                let x = (column + shift) * TILE_WIDTH
+                let y = row * TILE_HEIGHT
+                let gradientBlack = ctx.createLinearGradient(x, y, x + TILE_WIDTH, y + TILE_HEIGHT)
 
                 gradientBlack.addColorStop(0, "#3C3C3C")
                 gradientBlack.addColorStop(1, "black")
                 ctx.fillStyle = gradientBlack
-                ctx.fillRect(x, y, blockWidth, blockHeight)
+                ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT)
             }
 
             shift = !shift
@@ -340,6 +396,18 @@
 
         zoomIndicator.textContent = Math.round(zoom * 100) / 100
         board.style.transform = `scale(${zoom})`
+    }
+
+    function onCanvasMouseDown(event) {
+        let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
+        let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
+
+        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Pawn)
+
+        tileIndicator.textContent = 
+            (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
+        boardIndicator.textContent = 
+            `${Number(event.target.getAttribute("column")) + 1}, ${Number(event.target.getAttribute("row")) + 1}`
     }
 
     try {

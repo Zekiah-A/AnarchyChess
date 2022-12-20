@@ -213,6 +213,17 @@ Cursed fade out when there is more to display effect - we disable for now
     text-shadow: 0px 0px 4px black;
 }
 
+.copyright-notice {
+    position: absolute;
+    pointer-events: none;
+    top: 50%;
+    text-align: center;
+    width: 100%;
+    font-size: x-small;
+    color: darkgray;
+    user-select: none;
+}
+
 /*
 This is a cursed blur effect that is supposed to go behind main menu, broken for now
 .menu::before {
@@ -261,7 +272,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     width: 60%;
     height: 100%;
     display: flex;
-    backdrop-filter: blur(48px);
+    backdrop-filter: blur(32px);
     flex-direction: column;
     padding-left: 20%;
     padding-right: 20%;
@@ -291,6 +302,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     height: 512px;
     border: 2px solid gray;
     padding: 4px;
+    transform: scale(0.4);
     transition: .1s transform;
 }
 
