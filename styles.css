@@ -282,7 +282,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     text-align: center;
 }
 
-#warningMenu::before {
+#warningMenu > #warningMenuBackground {
     z-index: -1;
     position: absolute;
     height: 100%;
@@ -290,10 +290,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     left: 0px;
     top: 0px;
     opacity: 0.25;
-    content: " ";
-    background: url(https://upload.wikimedia.org/wikipedia/commons/6/66/Chess_gameboard..jpg);
-    background-repeat: no-repeat;
-    background-size: cover;
+    object-fit: cover;
 }
 
 #board {

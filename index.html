@@ -99,15 +99,23 @@
     </div>
 
     <div id="warningMenu">
+        <img id="warningMenuBackground" src="https://upload.wikimedia.org/wikipedia/commons/6/66/Chess_gameboard..jpg">
         <h1>Anarchy Chess</h1>
         <h2>⚠️ This game is an early alpha, expect bugs</h2>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
-        <input value="Proceed" type="button" style="width: 300px;align-self: center;" onclick="
+        <input value="Proceed" type="button" style="width: 300px; align-self: center;" onclick="
             warningMenu.animate([
                 { transform: 'scale(1)' },
                 { opacity: '1' },
                 { transform: 'scale(1.1)' },
                 { opacity: '0' },
+            ], {
+                duration: 1000,
+                iterations: 1
+            })
+            warningMenuBackground.animate([
+                { transform: 'scale(1)' },
+                { transform: 'scale(0.9)' },
             ], {
                 duration: 1000,
                 iterations: 1
@@ -308,13 +316,13 @@
             
             tileRow = ROWS - Math.abs(tileRow)
         }
-        while (tileColumn > COLUMNS) {
+        while (tileColumn > COLUMNS - 1) {
             canvas = board.querySelector(
                 `[column="${Number(canvas.getAttribute("column")) + 1}"][row="${canvas.getAttribute("row")}"]`)
             
             tileColumn -= COLUMNS
         }
-        while (tileRow > ROWS) {
+        while (tileRow > ROWS - 1) {
             canvas = board.querySelector(
                 `[column="${canvas.getAttribute("column")}"][row="${Number(canvas.getAttribute("row")) + 1}"]`)
             
@@ -325,9 +333,8 @@
         if (canvas == null) return
         const ctx = canvas.getContext("2d", { alpha: false })
 
-        if (special) context.fillStyle = "#8bff6185"
+        ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85"
         ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
-        ctx.fillStyle = "#61a6ff85"
     }
 
     function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
@@ -335,9 +342,6 @@
         const column = Number(event.target.getAttribute("column"))
         const row = Number(event.target.getAttribute("row")) 
         const pieces = map.boards[column][row].pieces
-        //Then we can take
-        /**/
-        ctx.fillStyle = "#61a6ff85"
 
         switch(pieceType) {
             case pieceTypes.Bishop:
@@ -365,14 +369,14 @@
                         fillTile(canvas, move[0], move[1])
                 }
                 break
-            case pieceTypes.Pawn:  //TODO: Implement correct suggestions for pawn colour variations
+            case pieceTypes.Pawn: //TODO: Implement correct suggestions for pawn colour variations
                 // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
                 if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
                 else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
                 else
-                    fillTile(canvas, pieceColumn, pieceRow - 1)
+                    fillTile(canvas, pieceColumn + 1, pieceRow - 1)
                 break
             case pieceTypes.Queen:
                 
@@ -455,7 +459,7 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Knight)
+        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Pawn)
 
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
