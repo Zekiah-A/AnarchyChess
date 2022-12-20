@@ -376,20 +376,20 @@
                 else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
                 else
-                    fillTile(canvas, pieceColumn + 1, pieceRow - 1)
+                    fillTile(canvas, pieceColumn, pieceRow - 1)
                 break
             case pieceTypes.Queen:
                 
                 break
             case pieceTypes.Rook:
-                for (let x = -COLUMNS / 2 + 1; x < COLUMNS / 2 - 1; x++) {
+                for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
                     if (pieces[x] != null  && pieces[x][pieceRow] != null) 
                         fillTile(canvas, x, pieceRow, true)
                     else
                         fillTile(canvas, x, pieceRow)
                 }
 
-                for (let y = -ROWS / 2 + 1; y < ROWS / 2 - 1; y++) {
+                for (let y = -ROWS + pieceRow; y < ROWS + pieceRow + 1; y++) {
                     if (pieces[pieceColumn] != null  && pieces[pieceColumn][y] != null) 
                         fillTile(canvas, pieceColumn, y, true)
                     else
@@ -459,7 +459,7 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Pawn)
+        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Rook)
 
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
