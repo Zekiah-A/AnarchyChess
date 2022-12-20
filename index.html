@@ -169,16 +169,6 @@
         Black: 1
     }
 
-    // Array of length n of arrays of length 2 (valid positions), of array of length 2 (the ranges that the positions fall in)
-    const validMoves = {
-        [pieceTypes.Bishop]: [[[0, 8], [0, 8]], [[0, -8], [0, -8]], []],
-        [pieceTypes.King]:  [],
-        [pieceTypes.Knight]: [],
-        [pieceTypes.Pawn]: [],
-        [pieceTypes.Queen]: [],
-        [pieceTypes.Rook]: []
-    }
-
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
@@ -303,9 +293,38 @@
         })
     }
 
-    function fillTile(context, tileColumn, tileRow, special = false) {
-        ctx.fillStyle = "#8bff6185"
-        context.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+    function fillTile(canvas, tileColumn, tileRow, special = false) {
+        // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
+        // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
+        while (tileColumn < 0) {
+            canvas = board.querySelector(
+                `[column="${Number(canvas.getAttribute("column")) - 1}"][row="${canvas.getAttribute("row")}"]`)
+            
+                tileColumn = COLUMNS - Math.abs(tileColumn)
+        }
+        while (tileRow < 0) {
+            canvas = board.querySelector(
+                `[column="${canvas.getAttribute("column")}"][row="${Number(canvas.getAttribute("row")) - 1}"]`)
+            
+            tileRow = ROWS - Math.abs(tileRow)
+        }
+        while (tileColumn > COLUMNS) {
+            canvas = board.querySelector(
+                `[column="${Number(canvas.getAttribute("column")) + 1}"][row="${canvas.getAttribute("row")}"]`)
+            
+            tileColumn -= COLUMNS
+        }
+        while (tileRow > ROWS) {
+            canvas = board.querySelector(
+                `[column="${canvas.getAttribute("column")}"][row="${Number(canvas.getAttribute("row")) + 1}"]`)
+            
+            tileRow -= ROWS
+        }
+
+        const ctx = canvas.getContext("2d", { alpha: false })
+
+        if (special) context.fillStyle = "#8bff6185"
+        ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
         ctx.fillStyle = "#61a6ff85"
     }
 
@@ -325,15 +344,17 @@
             case pieceTypes.King:
                 break
             case pieceTypes.Knight:
+
                 break
             case pieceTypes.Pawn:
-                fillTile(ctx, pieceColumn, pieceRow - 1)
+                //TODO: Implement correct suggestions for pawn colour variations
+                fillTile(canvas, pieceColumn - 4, pieceRow - 1)
 
-                // Possible diagonal pawn take moves
-                if (pieces[pieceColumn - 1][pieceRow - 1] != null)
-                    fillTile(ctx, pieceColumn - 1, pieceRow - 1)
-                else if (pieces[pieceColumn - 1][pieceRow + 1] != null)
-                    fillTile(ctx, pieceColumn - 1, pieceRow + 1)
+                // Possible diagonal pawn take moves, if there's something there then fill specilal
+                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
+                    fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
+                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
+                    fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
                 break
             case pieceTypes.Queen:
                 break
