@@ -390,7 +390,12 @@
                 for (let x = pieceColumn - 1; x <= pieceColumn + 1; x++) {
                     for (let y = pieceRow - 1; y <= pieceRow + 1; y++) {
                         if (x == pieceColumn && y == pieceRow) continue
-                        fillTile(canvas, x, y, (pieces[x] != null && pieces[x][y] != null))
+                        if (pieces[x] != null && pieces[x][y] != null) {
+                            fillTile(canvas, x, y, true)
+                            break
+                        }
+
+                        fillTile(canvas, x, y, )
                     }
                 }
                 break
@@ -425,18 +430,22 @@
             case pieceTypes.Rook:
                 for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
                     if (x == pieceColumn) continue
-                    if (pieces[x] != null  && pieces[x][pieceRow] != null) 
+                    if (pieces[x] != null  && pieces[x][pieceRow] != null) {
                         fillTile(canvas, x, pieceRow, true)
-                    else
-                        fillTile(canvas, x, pieceRow)
+                        break
+                    }
+
+                    fillTile(canvas, x, pieceRow)
                 }
 
                 for (let y = -ROWS + pieceRow; y < ROWS + pieceRow + 1; y++) {
                     if (y == pieceRow) continue
-                    if (pieces[pieceColumn] != null  && pieces[pieceColumn][y] != null) 
+                    if (pieces[pieceColumn] != null  && pieces[pieceColumn][y] != null) {
                         fillTile(canvas, pieceColumn, y, true)
-                    else
-                        fillTile(canvas, pieceColumn, y)
+                        break
+                    }
+
+                    fillTile(canvas, pieceColumn, y)
                 }
                 break
         }

@@ -10,19 +10,15 @@ public sealed class Board
     public List<Piece> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
-    public byte Columns { get; }
-    public byte Rows { get; }
-    public byte Column { get; set; }
-    public byte Row { get; set; }
+    private int Columns { get; }
+    private int Rows { get; }
     public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
     public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
-    public Board(byte column, byte row, byte columns = 8, byte rows = 8, TimeSpan? period = null)
+    public Board(byte columns = 8, byte rows = 8, TimeSpan? period = null)
     {
         period ??= TimeSpan.FromMilliseconds(1000);
 
-        Column = column;
-        Row = row;
         Rows = rows;
         Columns = columns;
         Turns = new List<Piece>();
@@ -48,12 +44,6 @@ public sealed class Board
         {
             return false;
         }
-
-        // Setup data in piece so that it knows where it is
-        piece.BoardColumn = Column;
-        piece.BoardRow = Row;
-        piece.Column = column;
-        piece.Row = row;
         
         Pieces[column, row] = piece;
         Turns.Add(piece);
@@ -67,8 +57,8 @@ public sealed class Board
             return false;
         }
         
-        var moveColumns = toColumn - piece.Column;
-        var moveRows = toColumn - piece.Row;
+        var moveColumns = toColumn - Pieces.CoordinatesOf(piece).Column;
+        var moveRows = toColumn - Pieces.CoordinatesOf(piece).Row;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
@@ -80,6 +70,7 @@ public sealed class Board
                 
                 break;
             case PieceType.King:
+                // TODO: Add ability for king to be in check
                 valid = moveColumns switch
                 {
                     1 or -1 when moveRows is 0 => true,
@@ -88,23 +79,23 @@ public sealed class Board
                     _ => valid
                 };
                 
-                // TODO: Add ability for king to be in check
                 break;
             case PieceType.Knight:
                 valid = moveColumns switch
                 {
-                    0 when moveRows is < 8 and > -8 => true,
-                    < 8 and > -8 when moveRows is 0 => true,
+                    2 or -2 when moveRows is 1 or -1 => true,
+                    1 or -1 when moveRows is 2 or -2 => true,
                     _ => valid
                 };
+
                 break;
             case PieceType.Pawn:
                 valid = moveColumns switch
                 {
-                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toColumn] is null => true,
-                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toColumn] is null => true,
-                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toColumn] is not null => true,
-                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toColumn] is not null => true,
+                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is null => true,
+                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is null => true,
+                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is not null => true,
+                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is not null => true,
                     _ => valid
                 };
 
@@ -124,8 +115,8 @@ public sealed class Board
             case PieceType.Rook:
                 valid = moveColumns switch
                 {
-                    2 or -2 when moveRows is 1 or -1 => true,
-                    1 or -1 when moveRows is 2 or -2 => true,
+                    0 when moveRows is < 8 and > -8 => true,
+                    < 8 and > -8 when moveRows is 0 => true,
                     _ => valid
                 };
                 
