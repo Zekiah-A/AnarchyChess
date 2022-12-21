@@ -72,9 +72,10 @@
         <div class="scroll-picker" id="sc"
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
-                this.current = this.querySelector('[selected]');
-                if (current != null) current.removeAttribute('selected');
-                event.target.setAttribute('selected', true);
+                this.current = this.querySelector('[selected]')
+                if (current != null) current.removeAttribute('selected')
+                event.target.setAttribute('selected', true)
+                pieceType = pieceTypes[event.target.textContent]
             ">
             <div selected>Pawn<img src="Assets/pawn.svg"></div>
             <div>Bishop<img src="Assets/bishop.svg"></div>
@@ -87,12 +88,13 @@
         <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
-                this.current = this.querySelector('[selected]');
-                if (current != null) current.removeAttribute('selected');
-                event.target.setAttribute('selected', true);
+                this.current = this.querySelector('[selected]')
+                if (current != null) current.removeAttribute('selected')
+                event.target.setAttribute('selected', true)
+                pieceColour = pieceColours[event.target.textContent]
             ">
             <div class="black-white" style="color: white; background-color: black;">Black</div>
-            <div class="black-white" style="color: black; background-color: white;">White</div>
+            <div selected class="black-white" style="color: black; background-color: white;">White</div>
         </div>
         <div style="flex-grow: 1;"></div>
         <input value="Play" type="button" onclick="
@@ -105,7 +107,7 @@
     <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
         <h2>Choose your spawn location</h2>
         <div class="dual-options">
-            <input value="Spawn by friend" type="button">
+            <input value="Spawn by friend" type="button" style="pointer-events: none;">
             <input value="Random location" type="button">
         </div>
     </div>
@@ -184,7 +186,7 @@
         Rook: 5
     }
 
-    const pieceColour = {
+    const pieceColours = {
         White: 0,
         Black: 1
     }
@@ -200,6 +202,9 @@
     let map = null
     let dragging = false
     let zoom = 0.4
+    let pieceType = pieceTypes.Pawn
+    let pieceColour = pieceColours.White
+    let positionEase = null
 
     function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
         this.boards = []
@@ -265,10 +270,12 @@
                     break
                 }
                 case serverPackets.Move: {
+
                     break
                 }
                 case serverPackets.Spawn: {
-
+                    
+                    break
                 }
 
                 case serverPackets.Chat: {
@@ -283,7 +290,6 @@
                         chatMessages.removeChild(chatMessages.firstElementChild)
                     break
                 }
-                /*
                 case serverPackets.FriendRequest:
                     break
                 case serverPackets.FriendAdded:
@@ -292,7 +298,6 @@
                     break
                 case serverPackets.FriendsOnline:
                     break
-                */
             }
         }
         
@@ -377,7 +382,6 @@
         // TODO: Show moves that would put you in danger (or in king's case, check)
         switch(pieceType) {
             case pieceTypes.Bishop:
-                //TODO: Implement diagonal validate 
                 /*for (let x = pieceColumn - COLUMNS; x < pieceColumn + COLUMNS + 1; x++) {
                     if (x == pieceColumn) continue
                     fillTile(canvas, x, x + pieceRow, (pieces[x] != null && pieces[x][x] != null))
@@ -489,9 +493,41 @@
         }
     }
 
+    // We place the column, row in the screen centre
+    function setPosition(boardColumn, boardRow, tileColumn, tileRow) {
+        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
+        let finalLeft = (centreX - (boardColumn * TILE_WIDTH * COLUMNS) - (tileColumn * TILE_WIDTH))
+        let finalTop = (centreY - (boardRow * TILE_HEIGHT * ROWS) - (tileRow * TILE_HEIGHT))
+        let initialLeft = board.offsetLeft
+        let initialTop = board.offsetTop
+        let current = 0
+        const repeats = 50
+
+        positionEase = setInterval(() => {
+            let ease = easeOutCubic(current / repeats)
+
+            board.style.left = (ease * (finalLeft - initialLeft) + initialLeft) + "px"
+            board.style.top = (ease * (finalTop - initialTop) + initialTop) + "px"
+
+            current++
+            if (current >= repeats) clearInterval(positionEase)
+        }, 16)
+    }
+
+    function easeOutCubic(progress) {
+        return 1 - Math.pow(1 - progress, 3)
+    }
+
+    function setZoom(zoomLevel) {
+        zoom = Math.min(Math.max(zoomLevel, 0.4), 2)
+        zoomIndicator.textContent = Math.round(zoom * 100) / 100
+        board.style.transform = `scale(${zoom})`
+    }
+
     function onDragBody(event) {
         if (!dragging) return
         if (event.target != document.body && !board.contains(event.target)) return
+        clearInterval(positionEase)
 
         board.style.left = board.offsetLeft + event.movementX + "px"
         board.style.top = board.offsetTop + event.movementY + "px"
@@ -499,12 +535,7 @@
 
     function onWheelBody(event) {
         if (event.target != document.body && !board.contains(event.target)) return
-
-        zoom = event.deltaY < 0 ? zoom + 0.2 : zoom - 0.2
-        zoom = Math.min(Math.max(zoom, 0.4), 2)
-
-        zoomIndicator.textContent = Math.round(zoom * 100) / 100
-        board.style.transform = `scale(${zoom})`
+        setZoom(event.deltaY < 0 ? zoom + 0.2 : zoom - 0.2)
     }
 
     function onCanvasMouseDown(event) {

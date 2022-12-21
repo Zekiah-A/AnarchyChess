@@ -42,3 +42,31 @@
     console.log("CONNECT BUFFER TEST -" + (success ? "SUCCESS" : "FAIL")
                 + " IN " + (Date.now() - start).toString() + "ms")
 }
+
+// Perform an ease out linear interpolation over 1600 frames (at 60fps) (setPosition)
+{
+    let initialLeft = -476
+    let finalLeft = 87
+    const repeats = 100
+    let current = 0
+
+    let animate = setInterval(() => {
+        // We pretend offsetleft is always starting from zero, by shifting final back by it as well
+        let finalShifted = finalLeft - initialLeft
+
+        // We get progress of offsetleft over the total diff it must cover, 
+        let leftShifted = board.offsetLeft - initialLeft
+
+        //Where we should be at now (shifted)
+        let xShiftedNow = easeOutCubic(current / repeats) * finalShifted
+
+        // Where we actually should be now, removing shift
+        let xNow = xShiftedNow + initialLeft
+        
+        current++
+        if (current >= repeats) {
+            clearInterval(animate)
+            console.log("EASE OUT LERP TEST - " + (Math.floor(xNow) == finalLeft ? "SUCCESS" : "FAIL"))
+        }
+    }, 100)
+}
