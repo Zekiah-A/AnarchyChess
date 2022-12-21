@@ -10,15 +10,19 @@ public sealed class Board
     public List<Piece> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
-    private int Columns { get; }
-    private int Rows { get; }
+    public byte Columns { get; }
+    public byte Rows { get; }
+    public byte Column { get; set; }
+    public byte Row { get; set; }
     public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
     public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
-    public Board(byte columns = 8, byte rows = 8, TimeSpan? period = null)
+    public Board(byte column, byte row, byte columns = 8, byte rows = 8, TimeSpan? period = null)
     {
         period ??= TimeSpan.FromMilliseconds(1000);
 
+        Column = column;
+        Row = row;
         Rows = rows;
         Columns = columns;
         Turns = new List<Piece>();
@@ -38,29 +42,33 @@ public sealed class Board
     }
     
     // Spawning piece is instant, but their turn to move is last
-    public bool TrySpawnPiece(Piece piece, int row, int column)
+    public bool TrySpawnPiece(Piece piece, byte column, byte row)
     {
-        if (Pieces[column, row] is null)
+        if (Pieces[column, row] is not null)
         {
             return false;
         }
+
+        // Setup data in piece so that it knows where it is
+        piece.BoardColumn = Column;
+        piece.BoardRow = Row;
+        piece.Column = column;
+        piece.Row = row;
         
         Pieces[column, row] = piece;
         Turns.Add(piece);
         return true;
     }
     
-    public bool TryMovePiece(Piece piece, int toRow, int toColumn)
+    public bool TryMovePiece(Piece piece, int toColumn, int toRow)
     {
         if (Turns[CurrentTurn].Equals(piece))
         {
             return false;
         }
         
-        var column = Pieces.CoordinatesOf(piece).Column;
-        var row = Pieces.CoordinatesOf(piece).Row;
-        var moveColumns = toRow - row;
-        var moveRows = toColumn - column;
+        var moveColumns = toColumn - piece.Column;
+        var moveRows = toColumn - piece.Row;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
@@ -93,10 +101,10 @@ public sealed class Board
             case PieceType.Pawn:
                 valid = moveColumns switch
                 {
-                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is null => true,
-                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is null => true,
-                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is not null => true,
-                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is not null => true,
+                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toColumn] is null => true,
+                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toColumn] is null => true,
+                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toColumn] is not null => true,
+                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toColumn] is not null => true,
                     _ => valid
                 };
 
@@ -131,7 +139,7 @@ public sealed class Board
         }
         
         // If we are landing on an occupied space, we are taking that piece
-        var taking = Pieces[toColumn, toRow];
+        var taking = Pieces[toColumn, toColumn];
         if (taking is not null)
         {
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));

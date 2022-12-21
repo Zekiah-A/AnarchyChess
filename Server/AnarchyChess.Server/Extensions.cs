@@ -2,6 +2,7 @@ namespace AnarchyChess.Server;
 
 public static class Extensions
 { 
+    /*
     public static (int Column, int Row) CoordinatesOf<T>(this T[,] matrix, T value)
     {
         var width = matrix.GetLength(0);
@@ -18,6 +19,7 @@ public static class Extensions
 
         return (-1, -1);
     }
+    */
     
     public static void Fill<T>(this T[,] matrix, T value)
     {

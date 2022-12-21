@@ -60,9 +60,8 @@ public sealed class ServerInstance
         app.MessageReceived += (sender, args) =>
         {
             var data = new Span<byte>(args.Data.ToArray());
-            var code = data[0];
 
-            switch ((ClientPackets) code)
+            switch ((ClientPackets) data[0])
             {
                 case ClientPackets.Spawn:
                 {
@@ -75,16 +74,11 @@ public sealed class ServerInstance
                     // Packet is boardRow = data[1], boardColumn = data[2], row = data[3],
                     // column = data[4], pieceType = data[5], client spawn packet.
                     var board = VirtualMap.Boards[data[1], data[2]];
-                    if (board is null)
-                    {
-                        app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
-                        return;
-                    }
-                    
+
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
-                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6], board);
-                    if (!board.TrySpawnPiece(piece, data[3], data[4]))
+                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6]);
+                    if (!board.TrySpawnPiece(piece, data[3], data[2]))
                     {
                         app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
                     }
@@ -121,9 +115,10 @@ public sealed class ServerInstance
                     var previousMove = SerialisePiecePacket(clientPiece);
                     var boardRow = data[1];
                     var boardColumn = data[2];
+                    var clientBoard = VirtualMap.Boards[clientPiece.BoardColumn, clientPiece.BoardRow];
                     
                     // Attempt move piece, reject if move is invalid 
-                    if (!clientPiece.Board.TryMovePiece(clientPiece, boardRow, boardColumn))
+                    if (!clientBoard.TryMovePiece(clientPiece, boardColumn, boardRow))
                     {
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
@@ -176,9 +171,11 @@ public sealed class ServerInstance
 
     private void RemoveClient(Piece clientPiece)
     {
+        var clientBoard = VirtualMap.Boards[clientPiece.BoardColumn, clientPiece.BoardRow];
+
         // Delete piece from that board
-        var pieceCoordinates = clientPiece.Board.Pieces.CoordinatesOf(clientPiece);
-        clientPiece.Board.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;
+        //var pieceCoordinates = clientBoard.Pieces.CoordinatesOf(clientPiece);
+        //clientBoard.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;
 
         // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
         var killBuffer = new byte[6];
@@ -222,24 +219,23 @@ public sealed class ServerInstance
     /// <summary>
     /// Length = 4
     /// </summary>
-    private byte[] SerialisePositionPacket(Piece piece)
+    private static byte[] SerialisePositionPacket(Piece piece)
     {
         return new[]
         {
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
+            (byte) piece.BoardRow,
+            (byte) piece.BoardColumn,
+            (byte) piece.Row,
+            (byte) piece.Column
         };
     }
     
     /// <summary>
     /// Length = 6
     /// </summary>
-    private byte[] SerialisePiecePacket(Piece piece)
+    private static byte[] SerialisePiecePacket(Piece piece)
     {
         var buffer = new byte[6];
-        
         SerialisePositionPacket(piece).CopyTo(buffer, 0);
         buffer[4] = (byte) piece.Type;
         buffer[5] = (byte) piece.Colour;
@@ -250,15 +246,13 @@ public sealed class ServerInstance
     /// <summary>
     /// Length = 8
     /// </summary>
-    /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket".</param>
+    /// <param name="piece">Piece that we are serialising</param>
+    /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket"</param>
     private byte[] SerialiseMovePacket(Piece piece, byte[] previousPosition)
     {
         var buffer = new byte[8];
         previousPosition.CopyTo(buffer, 0);
-        buffer[4] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
-        buffer[5] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
-        buffer[6] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
-        buffer[7] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;
+        SerialisePositionPacket(piece).CopyTo(buffer, 4);
         return buffer;
     }
 

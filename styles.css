@@ -264,6 +264,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
 #chatPanel > div {
     flex-grow: 1;
     overflow-y: scroll;
+    overflow-wrap: anywhere;
 }
 
 #chatPanel > div > span[deathevent] {
