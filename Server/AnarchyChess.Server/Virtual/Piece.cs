@@ -13,4 +13,4 @@ public sealed record Piece
     public int Row;
     public int BoardColumn;
     public int BoardRow;
-};
+}
