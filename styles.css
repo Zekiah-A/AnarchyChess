@@ -236,6 +236,16 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     backdrop-filter: blur(10px);
 }
 */
+#deathMenu {
+    transition: .2s transform ease-out;
+    transition-delay: .2s;
+}
+
+#deathMenu[closed] {
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+    visibility: hidden;
+}
 
 #chatPanel {
     right: 0px;

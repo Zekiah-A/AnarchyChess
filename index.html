@@ -52,6 +52,15 @@
         <p>Board: <span id="boardIndicator">0, 0</span></p>
         <p>Position: <span id="tileIndicator">A1</span></p>
     </div>
+
+    <div id="deathMenu" closed="true" class="menu">
+        <h1 style="margin-bottom: 8px;">♟️ BLUNDER</h1>
+        <p>You were killed by another piece.</p>
+        <div class="dual-options">
+            <input value="Respawn on map" type="button">
+            <input value="Main menu" type="button">
+        </div>
+    </div>
     
     <div id="mainMenu" class="menu main-menu">
         <h1>Anarchy Chess</h1>
@@ -222,18 +231,20 @@
     function connect(address) {
         ws = new WebSocket(address)
 
-        ws.onmessage = ({data}) => {
-            switch (data[0]) {
+        ws.onmessage = async ({data}) => {
+            data = new DataView(await data.arrayBuffer())
+
+            switch (data.getUint8(0)) {
                 case serverPackets.Canvases: {
-                    let boardsRows, boardsColumns, pieceRows, pieceColumns
-                    [boardsRows, boardsColumns, pieceRows, pieceColumns] = data.slice(1)
+                    let boardsRows = data.getUint8(1), boardsColumns = data.getUint8(2),
+                        pieceRows = data.getUint8(3), pieceColumns = data.getUint8(4)
 
                     board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px"
                     board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px"
                     
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
-                    let pieceArray = data.slice(5)
+                    let pieceArray = data.buffer.slice(5)
                     for (let i = 0; i < pieceArray.length; i += 6) {
                         let mapRow, mapColumn, boardRow, boardColumn, type, colour 
                         [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 6)
@@ -245,13 +256,25 @@
                     createAllCanvases()
                     break
                 }
+                case serverPackets.Token: {
+                    let token = decoder.decode(data.buffer.slice(1))
+                    localStorage.token = token
+                    break
+                }
                 case serverPackets.Move: {
                     break
                 }
+                case serverPackets.Spawn: {
+
+                }
+
                 case serverPackets.Chat: {
                     let el = document.createElement("span")
-                    el.textContent = ">> " + decoder.decode(data.slice(1))
+                    el.textContent = ">> " + decoder.decode(data.buffer.slice(1))
                     chatMessages.appendChild(el)
+                    chatMessages.appendChild(document.createElement("br"))
+
+                    chatMessages.scrollTo(0, chatMessages.scrollHeight)
                     break
                 }
                 /*
@@ -273,10 +296,9 @@
     }
 
     function sendChatMessage(message) {
-        let encoded = encoder.encode("\0x00" + message)
-        encoded[0] = serverPackets.Chat
+        let encoded = encoder.encode("0" + message)
+        encoded[0] = clientPackets.Chat
         ws.send(encoded)
-        console.log("sent")
     }
 
     function createAllCanvases() {
@@ -349,11 +371,12 @@
         // TODO: Show moves that would put you in danger (or in king's case, check)
         switch(pieceType) {
             case pieceTypes.Bishop:
-                for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
+                //TODO: Implement diagonal validate 
+                /*for (let x = pieceColumn - COLUMNS; x < pieceColumn + COLUMNS + 1; x++) {
                     if (x == pieceColumn) continue
-                    fillTile(canvas, x, x, (pieces[x] != null && pieces[x][x] != null))
-                    fillTile(canvas, x, -x, (pieces[x] != null && pieces[x][-x] != null))
-                }
+                    fillTile(canvas, x, x + pieceRow, (pieces[x] != null && pieces[x][x] != null))
+                    //fillTile(canvas, x, -x - pieceRow, (pieces[x] != null && pieces[x][-x] != null))
+                }*/
                 break
             case pieceTypes.King:
                 // TODO: Include invalidated moves from others putting in check
@@ -378,10 +401,7 @@
                 ]
 
                 for (let move of rookMoves) {
-                    if (pieces[move[0]] != null  && pieces[move[0]][move[1]] != null) 
-                        fillTile(canvas, move[0], move[1], true)
-                    else
-                        fillTile(canvas, move[0], move[1])
+                    fillTile(canvas, move[0], move[1], (pieces[move[0]] != null  && pieces[move[0]][move[1]] != null))
                 }
                 break
             case pieceTypes.Pawn:
@@ -395,11 +415,7 @@
                     fillTile(canvas, pieceColumn, pieceRow - 1)
                 break
             case pieceTypes.Queen:
-                for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
-                    if (x == pieceColumn) continue
-                    fillTile(canvas, x, x, (pieces[x] != null && pieces[x][x] != null))
-                    fillTile(canvas, x, -x, (pieces[x] != null && pieces[x][-x] != null))
-                }
+                //TODO: Depends on bishop
             case pieceTypes.Rook:
                 for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
                     if (x == pieceColumn) continue
@@ -429,7 +445,7 @@
         ctx.fillStyle = type == 1 ? "white" : "black"
 
         let pieceImage = new Image()
-        pieceImage.src = "data:image/svg+xml;base64, " + window.btoa(piecePaths[type])
+        pieceImage.src = "buffer:image/svg+xml;base64, " + window.btoa(piecePaths[type])
         ctx.drawImage(pieceImage, 0, 0, TILE_WIDTH, TILE_HEIGHT)
     }
 
@@ -480,7 +496,7 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Queen)
+        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Bishop)
 
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
@@ -490,7 +506,7 @@
 
     try {
         let piecePathWorker = new Worker("piecePathWorker.js")
-        piecePathWorker.onmessage = (event) => piecePaths.push(event.data)
+        piecePathWorker.onmessage = (event) => piecePaths.push(event.buffer)
     }
     catch(e) {
         console.error("Fatal worker error, can not load pieces.")

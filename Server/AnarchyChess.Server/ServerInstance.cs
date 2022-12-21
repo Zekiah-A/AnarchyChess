@@ -4,6 +4,7 @@ using System.Text;
 using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
 using AnarchyChess.Server.Virtual;
+using Microsoft.Extensions.Logging;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
@@ -17,12 +18,9 @@ public sealed class ServerInstance
 
     public ServerInstance(int port, Map? map = null, bool ssl = false, string? certificatePath = null, string? keyPath = null)
     {
-        X509Certificate2 certificate = null;
-        X509Certificate2 key = null;
-        
         map ??= new Map();
         VirtualMap = map;
-        app = new WatsonWsServer(port, ssl, certificate,  key, "localhost");
+        app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.None, "localhost");
 
         foreach (var board in VirtualMap.Boards)
         {
@@ -61,12 +59,7 @@ public sealed class ServerInstance
 
         app.MessageReceived += (sender, args) =>
         {
-            if (args.Data.Array is null)
-            {
-                return;
-            }
-
-            var data = new Span<byte>(args.Data.Array);
+            var data = new Span<byte>(args.Data.ToArray());
             var code = data[0];
 
             switch ((ClientPackets) code)
@@ -155,6 +148,9 @@ public sealed class ServerInstance
                         return;
                     }
 
+                    // Rebrand chat as a server packet and send to all players 
+                    data[0] = (byte) ServerPackets.Chat;
+                    
                     foreach (var client in app.Clients)
                     {
                         app.SendAsync(client, data.ToArray());
