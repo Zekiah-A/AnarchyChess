@@ -41,7 +41,10 @@
             <span spawnevent>✨ Pawn spawned at (1, 1) A1</span>
         </div>
         <input type="text" maxlength="250" onkeydown="
-            if (event.key == 'Enter') sendChatMessage(this.value)
+            if (event.key == 'Enter') {
+                sendChatMessage(this.value)
+                this.value = ''
+            }
         " />
     </div>
         
@@ -274,7 +277,10 @@
                     chatMessages.appendChild(el)
                     chatMessages.appendChild(document.createElement("br"))
 
+                    // Limit chat messages from becoming too long and causing issues
                     chatMessages.scrollTo(0, chatMessages.scrollHeight)
+                    if (chatMessages.childElementCount > 100)
+                        chatMessages.removeChild(chatMessages.firstElementChild)
                     break
                 }
                 /*
