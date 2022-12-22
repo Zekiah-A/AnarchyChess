@@ -100,6 +100,7 @@
         <input value="Play" type="button" onclick="
             mainMenu.style.display = 'none';
             spawnMenu.style.display = 'flex';
+            selectSpawnLocation()
         ">
         <div style="flex-grow: 1;"></div>
     </div>
@@ -201,6 +202,7 @@
     let ws = null
     let map = null
     let dragging = false
+    let inputPermitted = true
     let zoom = 0.4
     let pieceType = pieceTypes.Pawn
     let pieceColour = pieceColours.White
@@ -329,7 +331,6 @@
 
         board.querySelectorAll("canvas").forEach(canvas => {
             drawCheckeredBackground(canvas)
-
             canvas.addEventListener("mousedown", onCanvasMouseDown)
         })
     }
@@ -455,6 +456,51 @@
         }
     }
 
+    function selectSpawnLocation() {
+        inputPermitted = false
+        setZoom(1)
+        setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
+
+        board.querySelectorAll("canvas").forEach(canvas => {
+            let currentX = 0, currentY = 0, tileOverX = 0, tileoverY = 0
+            let tileEase = null
+            let animating = false
+
+            canvas.addEventListener("mousemove", (event) => {
+                tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
+                tileoverY = Math.floor(event.offsetY / TILE_HEIGHT)
+
+                if ((tileOverX == Math.floor(currentX) && tileoverY == Math.floor(currentY)) || animating) return
+
+                let current = 0
+                const repeats = 60
+
+                clearInterval(tileEase)
+                tileEase = setInterval(() => {
+                    let ease = easeOutCubic(current / repeats)
+                    currentX = ease * (tileOverX - currentX) + currentX
+                    currentY = ease * (tileoverY - currentY) + currentY
+
+                    drawCheckeredBackground(event.target)
+                    fillTile(event.target, currentX, currentY)
+                    animating = true
+                    current++
+
+                    if (current >= repeats) {
+                        clearInterval(tileEase)
+                        animating = false
+                    }
+                }, 16)
+            })
+
+            canvas.addEventListener("mouseleave", (event) => {
+                clearInterval(tileEase)
+                animating = false
+                drawCheckeredBackground(event.target)
+            })
+        })
+    }
+
     function drawPieces(mapRow, mapColumn) {
         const canvas = board.querySelector(`[row="${mapRow}"][column="${mapColumn}"]`)
         const ctx = canvas.getContext("2d", { alpha: false })
@@ -493,6 +539,10 @@
         }
     }
 
+    function easeOutCubic(progress) {
+        return 1 - Math.pow(1 - progress, 3)
+    }
+
     // We place the column, row in the screen centre
     function setPosition(boardColumn, boardRow, tileColumn, tileRow) {
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
@@ -514,18 +564,16 @@
         }, 16)
     }
 
-    function easeOutCubic(progress) {
-        return 1 - Math.pow(1 - progress, 3)
-    }
-
     function setZoom(zoomLevel) {
+        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
         zoom = Math.min(Math.max(zoomLevel, 0.4), 2)
+
         zoomIndicator.textContent = Math.round(zoom * 100) / 100
         board.style.transform = `scale(${zoom})`
     }
 
     function onDragBody(event) {
-        if (!dragging) return
+        if (!dragging || !inputPermitted) return
         if (event.target != document.body && !board.contains(event.target)) return
         clearInterval(positionEase)
 
@@ -534,7 +582,7 @@
     }
 
     function onWheelBody(event) {
-        if (event.target != document.body && !board.contains(event.target)) return
+        if (event.target != document.body && !board.contains(event.target) || !inputPermitted) return
         setZoom(event.deltaY < 0 ? zoom + 0.2 : zoom - 0.2)
     }
 

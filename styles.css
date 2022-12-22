@@ -312,6 +312,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     padding: 4px;
     transform: scale(0.4);
     transition: .1s transform;
+    transform-origin: 0px 0px;
 }
 
 #board > canvas {
