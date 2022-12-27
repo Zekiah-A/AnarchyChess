@@ -5,6 +5,7 @@
     <meta name="description" content="A massive multiplayer chess board with slightly bent rules. Here be anarchy.">
     <meta name="keywords" content="chess anarchy game multiplayer online">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta charset="UTF-8">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -47,9 +48,12 @@
             }
         " />
     </div>
-        
-    </div>
 
+    <div id="turnPanel" class="info-panel">
+        <div id="turnProgress"></div>
+        <div id="turnLabel" style="white-space: pre;">Current turn: 1             (5s)</div>
+    </div>
+    
     <div class="info-panel" style="left: 0px; top: 68px;">
         <p>Zoom: <span id="zoomIndicator">0.4</span>x</p>
         <p>Board: <span id="boardIndicator">0, 0</span></p>
@@ -461,57 +465,47 @@
         setZoom(1)
         setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
 
-        board.querySelectorAll("canvas").forEach(canvas => {
-            let currentX = 0, currentY = 0, tileOverX = 0, tileoverY = 0
-            let tileEase = null
-            let animating = false
+        function canvasMouseMove(event) {
+            let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
+            let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-            canvas.addEventListener("mousemove", (event) => {
-                tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
-                tileoverY = Math.floor(event.offsetY / TILE_HEIGHT)
+            drawCheckeredBackground(event.target)
+            fillTile(event.target, tileOverX, tileOverY)
+        }
 
-                if ((tileOverX == Math.floor(currentX) && tileoverY == Math.floor(currentY)) || animating) return
+        function canvasMouseLeave(event) {
+            drawCheckeredBackground(event.target)
+        }
 
-                let current = 0
-                const repeats = 60
+        function canvasMouseUp(event) {
+            let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
+            let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-                clearInterval(tileEase)
-                tileEase = setInterval(() => {
-                    let ease = easeOutCubic(current / repeats)
-                    currentX = ease * (tileOverX - currentX) + currentX
-                    currentY = ease * (tileoverY - currentY) + currentY
+            drawCheckeredBackground(event.target)
+            inputPermitted = true
+            setPosition(+event.target.getAttribute("column"), +event.target.getAttribute("row"), tileOverX, tileOverY)
 
-                    drawCheckeredBackground(event.target)
-                    fillTile(event.target, currentX, currentY)
-                    animating = true
-                    current++
-
-                    if (current >= repeats) {
-                        clearInterval(tileEase)
-                        animating = false
-                    }
-                }, 16)
+            board.querySelectorAll("canvas").forEach(canvas => {
+                canvas.removeEventListener("mousemove", canvasMouseMove)
+                canvas.removeEventListener("mouseleave", canvasMouseLeave)
+                canvas.removeEventListener("mouseup", canvasMouseUp)
             })
+        }
 
-            canvas.addEventListener("mouseleave", (event) => {
-                clearInterval(tileEase)
-                animating = false
-                drawCheckeredBackground(event.target)
-            })
+        board.querySelectorAll("canvas").forEach(canvas => {           
+            canvas.addEventListener("mousemove", canvasMouseMove)
+            canvas.addEventListener("mouseleave", canvasMouseLeave)
+            canvas.addEventListener("mouseup", canvasMouseUp)
         })
     }
 
-    function drawPieces(mapRow, mapColumn) {
-        const canvas = board.querySelector(`[row="${mapRow}"][column="${mapColumn}"]`)
+    function drawPieces(mapColumn, mapRow, tileColumn, tileRow) {
+        const canvas = board.querySelector(`[column="${mapColumn}"][row="${mapRow}"]`)
         const ctx = canvas.getContext("2d", { alpha: false })
-        const virtualBoard = map.boards[mapRow][mapColumn]
+        const virtualBoard = map.boards[mapColumn][mapRow]
 
-        let type = 1
         ctx.fillStyle = type == 1 ? "white" : "black"
-
-        let pieceImage = new Image()
-        pieceImage.src = "buffer:image/svg+xml;base64, " + window.btoa(piecePaths[type])
-        ctx.drawImage(pieceImage, 0, 0, TILE_WIDTH, TILE_HEIGHT)
+        // Iterate through each path in SVG, draw, convert SVG to a new format
     }
 
     function drawCheckeredBackground(canvas) {
@@ -598,15 +592,14 @@
             `${Number(event.target.getAttribute("column")) + 1}, ${Number(event.target.getAttribute("row")) + 1}`
     }
 
-    try {
-        let piecePathWorker = new Worker("piecePathWorker.js")
-        piecePathWorker.onmessage = (event) => piecePaths.push(event.buffer)
-    }
-    catch(e) {
-        console.error("Fatal worker error, can not load pieces.")
+    async function fetchPiecePaths() {
+        for (let name of ["bishop", "king", "knight", "pawn", "queen", "rook"]) {
+            piecePaths.push(await (await fetch("./Assets/" + name + ".svg")).text())
+        }
     }
     
     connect("ws://localhost:8087")
+    fetchPiecePaths()
     //connect(localStorage.address || "wss://server.poemanthology.org:8083")
 </script>
 </html>

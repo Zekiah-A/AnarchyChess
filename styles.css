@@ -277,6 +277,31 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     display: block;
 }
 
+#turnPanel {
+    left: 50%;
+    transform: translateX(-50%);
+    top: 10px;
+    height: 24px;
+    background: var(--ui-info-transparent);
+}
+
+#turnProgress {
+    position: absolute;height: calc(100% - 16px);width: 0%;z-index: -1;
+    background: 
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            #ccc 10px,
+            #ccc 20px
+        ),
+        linear-gradient(
+            to bottom,
+            #eee,
+            #999
+        );
+}
+
 #warningMenu {
     z-index: 3;
     position: absolute;

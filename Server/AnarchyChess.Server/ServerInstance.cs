@@ -1,4 +1,6 @@
 ﻿using System.Buffers.Binary;
+using System.Runtime.Intrinsics.Arm;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using AnarchyChess.Server.Events;
@@ -15,13 +17,15 @@ public sealed class ServerInstance
     public Dictionary<ClientMetadata, Piece> Clients { get; set; } = new();
     
     private WatsonWsServer app;
+    private SHA256 sha256Hash;
 
     public ServerInstance(int port, Map? map = null, bool ssl = false, string? certificatePath = null, string? keyPath = null)
     {
         map ??= new Map();
         VirtualMap = map;
         app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.None, "localhost");
-
+        sha256Hash = SHA256.Create();
+        
         foreach (var board in VirtualMap.Boards)
         {
             board.PieceKilledEvent += OnPieceKilled;
@@ -74,17 +78,16 @@ public sealed class ServerInstance
                     
                     // Packet is boardRow = data[1], boardColumn = data[2], row = data[3],
                     // column = data[4], pieceType = data[5], client spawn packet.
-                    var board = VirtualMap.Boards[data[1], data[2]];
-                    if (board is null)
-                    {
-                        app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
-                        return;
-                    }
-                    
+                    ref var boardReference = ref VirtualMap.Boards[data[1], data[2]];
+
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
-                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6], board);
-                    if (!board.TrySpawnPiece(piece, data[3], data[4]))
+                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6], boardReference)
+                    {
+                        Board = boardReference
+                    };
+                    
+                    if (!boardReference.TrySpawnPiece(piece, data[3], data[4]))
                     {
                         app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
                     }
@@ -148,7 +151,7 @@ public sealed class ServerInstance
                         return;
                     }
 
-                    // Rebrand chat as a server packet and send to all players 
+                    // Rebrand chat as a server packet and send to all players
                     data[0] = (byte) ServerPackets.Chat;
                     
                     foreach (var client in app.Clients)

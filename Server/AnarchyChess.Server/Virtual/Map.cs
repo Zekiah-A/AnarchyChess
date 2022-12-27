@@ -14,7 +14,7 @@ public sealed class Map
         Boards = new Board[columns, rows];
         Boards.Fill(new Board(pieceColumns, pieceRows, period));
     }
-
+    
     public void ShiftAll(int directionX, int directionY)
     {
         
