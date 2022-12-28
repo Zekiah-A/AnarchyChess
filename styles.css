@@ -202,7 +202,6 @@ Cursed fade out when there is more to display effect - we disable for now
     height: 96px;
     color: white;
     padding: 8px;
-    top: 68px;
     display: flex;
     flex-direction: column;
     border-radius: 8px;
@@ -248,6 +247,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
 }
 
 #chatPanel {
+    top: 68px;
     right: 0px;
     background: var(--ui-info-transparent);
     width: 340px;
@@ -283,6 +283,23 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     top: 10px;
     height: 24px;
     background: var(--ui-info-transparent);
+    transition: .2s top;
+}
+
+#infoPanel {
+    top: 68px;
+    left: 0px;
+    transition: .2s top;
+}
+
+@media screen and (orientation: portrait) {
+    #turnPanel {
+        top: 68px;
+    }
+
+    #infoPanel {
+        top: 108px
+    }
 }
 
 #turnProgress {

@@ -1,7 +1,5 @@
 ﻿using System.Buffers.Binary;
-using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
@@ -15,7 +13,8 @@ public sealed class ServerInstance
     // ReSharper disable MemberCanBePrivate.Global
     public Map VirtualMap { get; }
     public Dictionary<ClientMetadata, Piece> Clients { get; set; } = new();
-    
+    public Action<string>? Logger;
+
     private WatsonWsServer app;
     private SHA256 sha256Hash;
 
@@ -77,7 +76,7 @@ public sealed class ServerInstance
                     }
                     
                     // Packet is boardRow = data[1], boardColumn = data[2], row = data[3],
-                    // column = data[4], pieceType = data[5], client spawn packet.
+                    // column = data[4], pieceType = data[5], pieceColour = data[6]
                     ref var boardReference = ref VirtualMap.Boards[data[1], data[2]];
 
                     // Add piece to board

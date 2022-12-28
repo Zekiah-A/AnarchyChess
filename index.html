@@ -54,7 +54,7 @@
         <div id="turnLabel" style="white-space: pre;">Current turn: 1             (5s)</div>
     </div>
     
-    <div class="info-panel" style="left: 0px; top: 68px;">
+    <div id="infoPanel" class="info-panel">
         <p>Zoom: <span id="zoomIndicator">0.4</span>x</p>
         <p>Board: <span id="boardIndicator">0, 0</span></p>
         <p>Position: <span id="tileIndicator">A1</span></p>
@@ -490,6 +490,28 @@
                 canvas.removeEventListener("mouseleave", canvasMouseLeave)
                 canvas.removeEventListener("mouseup", canvasMouseUp)
             })
+
+            spawnMenu.animate([
+                { opactiy: '0' },
+                { top: '-10%' },
+            ], {
+                duration: 200,
+                iterations: 1
+            })
+
+            window.setTimeout(() => spawnMenu.style.display = "none", 200)
+
+            let spawnArray = new Uint8Array(16)
+            spawnArray[0] = clientPackets.Spawn
+            spawnArray[1] = +event.target.getAttribute("column")
+            spawnArray[2] = +event.target.getAttribute("row")
+            spawnArray[3] = tileOverX
+            spawnArray[4] = tileOverY
+            spawnArray[5] = pieceType
+            spawnArray[6] = pieceColour
+
+            ws.send(spawnArray)
+
         }
 
         board.querySelectorAll("canvas").forEach(canvas => {           
@@ -540,8 +562,8 @@
     // We place the column, row in the screen centre
     function setPosition(boardColumn, boardRow, tileColumn, tileRow) {
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
-        let finalLeft = (centreX - (boardColumn * TILE_WIDTH * COLUMNS) - (tileColumn * TILE_WIDTH))
-        let finalTop = (centreY - (boardRow * TILE_HEIGHT * ROWS) - (tileRow * TILE_HEIGHT))
+        let finalLeft = (centreX - ((boardColumn * TILE_WIDTH * COLUMNS) - (tileColumn * TILE_WIDTH)) * zoom)
+        let finalTop = (centreY - ((boardRow * TILE_HEIGHT * ROWS) - (tileRow * TILE_HEIGHT)) * zoom)
         let initialLeft = board.offsetLeft
         let initialTop = board.offsetTop
         let current = 0
@@ -559,7 +581,7 @@
     }
 
     function setZoom(zoomLevel) {
-        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
+        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2, oldZoom = zoom
         zoom = Math.min(Math.max(zoomLevel, 0.4), 2)
 
         zoomIndicator.textContent = Math.round(zoom * 100) / 100

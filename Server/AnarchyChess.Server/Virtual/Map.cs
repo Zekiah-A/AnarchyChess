@@ -9,7 +9,7 @@ public sealed class Map
 {
     public Board[,] Boards { get; private set; }
 
-    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan? period = null)
+    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan period = default)
     {
         Boards = new Board[columns, rows];
         Boards.Fill(new Board(pieceColumns, pieceRows, period));

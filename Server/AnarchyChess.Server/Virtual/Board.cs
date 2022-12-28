@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Threading;
+using System.Timers;
 using AnarchyChess.Server.Events;
+using Timer = System.Timers.Timer;
 
 namespace AnarchyChess.Server.Virtual;
 
@@ -12,21 +14,24 @@ public sealed class Board
     private Timer TurnTimer { get; set; }
     private int Columns { get; }
     private int Rows { get; }
+    private Action<string>? Logger;
     public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
     public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
-    public Board(byte columns = 8, byte rows = 8, TimeSpan? period = null)
+    public Board(byte columns = 8, byte rows = 8, TimeSpan period = default)
     {
-        period ??= TimeSpan.FromMilliseconds(1000);
-
         Rows = rows;
         Columns = columns;
         Turns = new List<Piece>();
         Pieces = new Piece[columns, rows];
-        TurnTimer = new Timer(ProgressTurn, new AutoResetEvent(true), 0, period.Value.Milliseconds);
+        
+        TurnTimer = new Timer(period.Milliseconds <= 0 ? 10_000 : period.Milliseconds);
+        TurnTimer.Elapsed += ProgressTurn;
+        TurnTimer.Enabled = true;
+        TurnTimer.Start();
     }
     
-    private void ProgressTurn(object? stateInfo)
+    private void ProgressTurn(object? sender, ElapsedEventArgs? args)
     {
         if (Turns.Count == 0)
         {
@@ -52,6 +57,8 @@ public sealed class Board
     
     public bool TryMovePiece(Piece piece, int toColumn, int toRow)
     {
+        TurnTimer.Stop();
+        
         if (Turns[CurrentTurn].Equals(piece))
         {
             return false;
@@ -136,6 +143,9 @@ public sealed class Board
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
 
+        ProgressTurn(this, null);
+        TurnTimer.Start();
+        
         return true;
     }
 }
