@@ -337,7 +337,7 @@
                 <path d="M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 25 16 A 2.5 2.5 0 1 1  20,16 A 2.5 2.5 0 1 1  25 16 z" style="fill: none; stroke: #ffffff; stroke-linejoin: miter"/>
             </g>
         </svg>
-        `
+        `,
         `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">
             <g style="fill: none; fill-opacity: 1; fill-rule: evenodd; stroke: #000000; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; stroke-miterlimit: 4; stroke-dasharray: none; stroke-opacity: 1">
@@ -741,8 +741,8 @@
             drawCheckeredBackground(event.target)
 
             setZoom(1)
+            setPosition(+event.target.getAttribute("column"), +event.target.getAttribute("row"), tileOverX, tileOverY)
             window.setTimeout(() => {
-                setPosition(+event.target.getAttribute("column"), +event.target.getAttribute("row"), tileOverX, tileOverY)
                 inputPermitted = true
             }, 100)
 

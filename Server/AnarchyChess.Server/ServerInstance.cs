@@ -1,6 +1,4 @@
 ﻿using System.Buffers.Binary;
-using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text;
 using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
@@ -13,7 +11,7 @@ public sealed class ServerInstance
 {
     // ReSharper disable MemberCanBePrivate.Global
     public Map VirtualMap { get; }
-    public Dictionary<ClientMetadata, Piece> Clients { get; set; } = new();
+    public Dictionary<ClientMetadata, string> Clients { get; set; } = new();
     public Action<string>? Logger;
 
     private WatsonWsServer app;
@@ -50,9 +48,10 @@ public sealed class ServerInstance
             buffer[4] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(1);
             
             var i = 5;
-            foreach (var piece in Clients.Values)
+            foreach (var pieceToken in Clients.Values)
             {
-                SerialisePiecePacket(piece).CopyTo(buffer, i);
+                var clientPiece = GetPieceInstance(pieceToken);
+                SerialisePiecePacket(clientPiece).CopyTo(buffer, i);
                 i += 4;
             }
 
@@ -69,8 +68,9 @@ public sealed class ServerInstance
                 case ClientPackets.Spawn:
                 {
                     //TODO: Implement token re-authentication
-                    if (Clients.TryGetValue(args.Client, out var clientPiece))
+                    if (Clients.TryGetValue(args.Client, out var clientToken))
                     {
+                        var clientPiece = GetPieceInstance(clientToken);
                         RemoveClient(clientPiece);
                     }
 
@@ -86,18 +86,28 @@ public sealed class ServerInstance
 
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
-                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6])
+                    var piece = new Piece
+                    (
+                        token,
+                        (PieceType) data[5],
+                        (PieceColour) data[6],
+                        data[1],
+                        data[2],
+                        data[3],
+                        data[4]
+                    )
                     {
                         BoardColumn = boardReference.Column,
                         BoardRow = boardReference.Row
                     };
                     
-                    if (!boardReference.TrySpawnPiece(piece, data[3], data[4]))
+                    if (!boardReference.TrySpawnPiece(piece))
                     {
                         app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
+                        return;
                     }
                     
-                    Clients.Add(args.Client, piece);
+                    Clients.Add(args.Client, token);
                     
                     // Send the client back their token so that they can reconnect to the same piece
                     var guidBuffer = Encoding.UTF8.GetBytes(token);
@@ -110,7 +120,7 @@ public sealed class ServerInstance
                     // Send to all connected clients
                     var sendBuffer = new byte[6];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
-                    SerialisePiecePacket(piece).CopyTo(sendBuffer, 1); //ok so we fail hnere
+                    SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
                     
                     foreach (var client in app.Clients)
                     {
@@ -120,10 +130,12 @@ public sealed class ServerInstance
                 }
                 case ClientPackets.Move:
                 {
-                    if (!Clients.TryGetValue(args.Client, out var clientPiece))
+                    if (!Clients.TryGetValue(args.Client, out var clientToken))
                     {
                         return;
                     }
+
+                    var clientPiece = GetPieceInstance(clientToken);
                     
                     // Record previous move packet, board row and board column, before manipulating piece position.
                     var previousMove = SerialisePiecePacket(clientPiece);
@@ -131,11 +143,12 @@ public sealed class ServerInstance
                     var boardColumn = data[2];
                     
                     // Attempt move piece, reject if move is invalid 
-                    /*if (!clientPiece.Board.TryMovePiece(clientPiece, boardRow, boardColumn))
+                    if (!VirtualMap.Boards[clientPiece.BoardColumn, clientPiece.BoardRow]
+                            .TryMovePiece(clientPiece, boardRow, boardColumn))
                     {
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
-                    }*/
+                    }
 
                     // Send to all connected clients
                     var sendBuffer = new byte[9];
@@ -172,8 +185,9 @@ public sealed class ServerInstance
         {
             // TODO: We do not necessarily have to kill players off on disconnect, for example, on server shutdown,
             // TODO: players should be able to reauthenticate into their piece via the token saved in localstorage.
-            if (Clients.TryGetValue(args.Client, out var clientPiece))
+            if (Clients.TryGetValue(args.Client, out var clientToken))
             {
+                var clientPiece = GetPieceInstance(clientToken);
                 RemoveClient(clientPiece);
             }
         };
@@ -185,8 +199,7 @@ public sealed class ServerInstance
     private void RemoveClient(Piece clientPiece)
     {
         // Delete piece from that board
-        /*var pieceCoordinates = clientPiece.Board.Pieces.CoordinatesOf(clientPiece);
-        clientPiece.Board.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;*/
+        VirtualMap.DeletePiece(clientPiece);
 
         // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
         var killBuffer = new byte[6];
@@ -234,11 +247,10 @@ public sealed class ServerInstance
     {
         return new[]
         {
-            (byte) 1, (byte) 2
-            /*(byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column*/
+            (byte) piece.BoardColumn,
+            (byte) piece.BoardRow,
+            (byte) piece.Column,
+            (byte) piece.Row
         };
     }
     
@@ -264,11 +276,23 @@ public sealed class ServerInstance
     {
         var buffer = new byte[9];
         previousPosition.CopyTo(buffer, 0);
-        /*buffer[5] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
-        buffer[6] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
-        buffer[7] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
-        buffer[8] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;*/
+        buffer[5] = (byte) piece.BoardColumn;
+        buffer[6] = (byte) piece.BoardRow;
+        buffer[7] = (byte) piece.Column;
+        buffer[8] = (byte) piece.Row;
         return buffer;
     }
 
+    private Piece GetPieceInstance(string token)
+    {
+        var located = VirtualMap.LocatePieceInstance(token);
+        
+        if (located != (-1, -1, -1, -1))
+        {
+            return VirtualMap.Boards[located.BoardColumn, located.BoardRow]
+                .Pieces[located.BoardColumn, located.BoardRow]!;
+        }
+
+        return null!;
+    }
 }

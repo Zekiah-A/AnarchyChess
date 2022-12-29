@@ -1,6 +1,3 @@
-using System.Collections;
-using System.Runtime.InteropServices;
-using System.Threading;
 using System.Timers;
 using AnarchyChess.Server.Events;
 using Timer = System.Timers.Timer;
@@ -35,7 +32,7 @@ public sealed class Board
         TurnTimer.Start();
     }
     
-    private void ProgressTurn(object? sender, ElapsedEventArgs? args)
+    public void ProgressTurn(object? sender, ElapsedEventArgs? args)
     {
         if (Turns.Count == 0)
         {
@@ -47,16 +44,14 @@ public sealed class Board
     }
     
     // Spawning piece is instant, but their turn to move is last
-    public bool TrySpawnPiece(Piece piece, byte column, byte row)
+    public bool TrySpawnPiece(Piece piece)
     {
-        if (Pieces[column, row] is not null)
+        if (Pieces[piece.Column, piece.Row] is not null)
         {
             return false;
         }
         
-        piece
-            
-        Pieces[column, row] = piece;
+        Pieces[piece.Column, piece.Row] = piece;
         Turns.Add(piece);
         return true;
     }
@@ -70,8 +65,8 @@ public sealed class Board
             return false;
         }
         
-        var moveColumns = toColumn - Pieces.CoordinatesOf(piece).Column;
-        var moveRows = toColumn - Pieces.CoordinatesOf(piece).Row;
+        var moveColumns = toColumn - piece.Column;
+        var moveRows = toColumn - piece.Row;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
@@ -153,5 +148,33 @@ public sealed class Board
         TurnTimer.Start();
         
         return true;
+    }
+
+    public void DeletePiece(Piece piece)
+    {
+        Turns.Remove(piece);
+        Pieces[piece.Row, piece.Column] = null;
+    }
+
+    public (int PieceColumn, int PieceRow) LocatePieceInstance(string token)
+    {
+        for (byte x = 0; x < Columns; x++)
+        {
+            for (byte y = 0; y < Rows; y++)
+            {
+                var piece = Pieces[x, y];
+                if (piece is null)
+                {
+                    continue;
+                }
+                
+                if (piece.Token.Equals(token))
+                {
+                    return (x, y);
+                }
+            }
+        }
+
+        return (-1, -1);
     }
 }
