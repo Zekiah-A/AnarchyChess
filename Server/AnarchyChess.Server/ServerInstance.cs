@@ -131,15 +131,13 @@ public sealed class ServerInstance
                         return;
                     }
 
-                    var clientPiece = GetPieceInstance(clientToken);
-                    
                     // Record previous move packet, board row and board column, before manipulating piece position.
-                    var previousMove = SerialisePiecePacket(clientPiece);
+                    var previousMove = SerialisePiecePacket(GetPieceInstance(clientToken));
                     var boardRow = data[1];
                     var boardColumn = data[2];
                     
                     // Attempt move piece, reject if move is invalid 
-                    if (!VirtualMap.TryMovePiece(clientPiece.Token, boardRow, boardColumn))
+                    if (!VirtualMap.TryMovePiece(clientToken, boardRow, boardColumn))
                     {
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
@@ -148,7 +146,7 @@ public sealed class ServerInstance
                     // Send to all connected clients
                     var sendBuffer = new byte[9];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
-                    SerialiseMovePacket(clientPiece, previousMove).CopyTo(sendBuffer, 1);
+                    SerialiseMovePacket(clientToken, previousMove).CopyTo(sendBuffer, 1);
                     
                     foreach (var client in app.Clients)
                     {
@@ -265,9 +263,9 @@ public sealed class ServerInstance
     /// Length = 9
     /// </summary>
     /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket".</param>
-    private byte[] SerialiseMovePacket(Piece piece, byte[] previousPosition)
+    private byte[] SerialiseMovePacket(string token, byte[] previousPosition)
     {
-        var located = VirtualMap.LocatePieceInstance(piece.Token);
+        var located = VirtualMap.LocatePieceInstance(token);
         var buffer = new byte[9];
         previousPosition.CopyTo(buffer, 0);
         buffer[5] = (byte) located.BoardColumn;
