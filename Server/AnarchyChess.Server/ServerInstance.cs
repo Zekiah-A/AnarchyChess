@@ -48,9 +48,8 @@ public sealed class ServerInstance
             buffer[4] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(1);
             
             var i = 5;
-            foreach (var pieceToken in Clients.Values)
+            foreach (var clientPiece in Clients.Values.Select(pieceToken => GetPieceInstance(pieceToken)))
             {
-                var clientPiece = GetPieceInstance(pieceToken);
                 SerialisePiecePacket(clientPiece).CopyTo(buffer, i);
                 i += 4;
             }

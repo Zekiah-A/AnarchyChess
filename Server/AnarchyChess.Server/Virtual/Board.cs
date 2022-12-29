@@ -69,20 +69,24 @@ public sealed class Board
             return false;
         }
 
+        var toWhere = new PieceLocation(toColumn, toRow);
         var moveColumns = toColumn - location.PieceColumn;
-        var moveRows = toColumn - location.PieceRow;
+        var moveRows = toRow - location.PieceRow;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
         switch (piece.Type)
         {
             case PieceType.Bishop:
-                valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && moveRows == moveColumns;
-                
-                
+                valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && Math.Abs(moveRows) == Math.Abs(moveColumns);
+
+                if (PieceBlocksDiagonal(location, toWhere))
+                {
+                    valid = false;
+                }
                 break;
             case PieceType.King:
-                // TODO: Add ability for king to be in check
+                // TODO: Stop king from walking into check
                 valid = moveColumns switch
                 {
                     1 or -1 when moveRows is 0 => true,
@@ -90,7 +94,6 @@ public sealed class Board
                     1 or -1 when moveRows is 1 or -1 && moveRows == moveColumns => true,
                     _ => valid
                 };
-                
                 break;
             case PieceType.Knight:
                 valid = moveColumns switch
@@ -99,7 +102,6 @@ public sealed class Board
                     1 or -1 when moveRows is 2 or -2 => true,
                     _ => valid
                 };
-
                 break;
             case PieceType.Pawn:
                 valid = moveColumns switch
@@ -110,19 +112,23 @@ public sealed class Board
                     1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
                     _ => valid
                 };
-
-                
                 break;
             case PieceType.Queen:
+                valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && Math.Abs(moveRows) == Math.Abs(moveColumns);
+                
                 valid = moveColumns switch
                 {
                     0 when moveRows is < 8 and > -8 => true,
-                    0 when moveRows is < 8 and > -8 => true,
+                    < 8 and > -8 when moveRows is 0 => true,
                     < 8 and > -8 when moveRows is < 8 and > -8 && moveRows == moveColumns => true,
                     _ => valid
                 };
-                
-                
+
+                if (PieceBlocksHorizontal(location, toWhere) || PieceBlocksVertical(location, toWhere)
+                    || PieceBlocksDiagonal(location, toWhere))
+                {
+                    valid = false;
+                }
                 break;
             case PieceType.Rook:
                 valid = moveColumns switch
@@ -131,8 +137,11 @@ public sealed class Board
                     < 8 and > -8 when moveRows is 0 => true,
                     _ => valid
                 };
-                
-                
+
+                if (PieceBlocksHorizontal(location, toWhere) || PieceBlocksVertical(location, toWhere))
+                {
+                    valid = false;
+                }
                 break;
         }
         
@@ -183,5 +192,96 @@ public sealed class Board
         }
 
         return new PieceLocation(-1, -1);
+    }
+
+    private bool PieceBlocksHorizontal(PieceLocation start, PieceLocation end)
+    {
+        // If left of start piece column
+        if (end.PieceColumn < start.PieceColumn)
+        {
+            for (var x = end.PieceColumn; x < start.PieceColumn; x++)
+            {
+                if (!string.IsNullOrEmpty(Pieces[x, start.PieceRow].Token))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        
+        for (var x = start.PieceColumn; x < end.PieceColumn; x++)
+        {
+            if (!string.IsNullOrEmpty(Pieces[x, start.PieceRow].Token))
+            {
+                return true;
+            }
+
+        }
+
+        return false;
+    }
+    
+    private bool PieceBlocksVertical(PieceLocation start, PieceLocation end)
+    {
+        // If below start piece row
+        if (end.PieceRow < start.PieceRow)
+        {
+            for (var y = end.PieceRow; y < start.PieceRow; y++)
+            {
+                if (!string.IsNullOrEmpty(Pieces[y, start.PieceRow].Token))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        
+        for (var y = start.PieceRow; y < end.PieceRow; y++)
+        {
+            if (!string.IsNullOrEmpty(Pieces[y, start.PieceRow].Token))
+            {
+                return true;
+            }
+
+        }
+
+        return false;
+    }
+
+    private bool PieceBlocksDiagonal(PieceLocation start, PieceLocation end)
+    {
+        var y = 0;
+
+        if (end.PieceColumn > start.PieceColumn)
+        {
+
+            for (var x = start.PieceColumn; x < end.PieceColumn; x++)
+            {
+                if (!string.IsNullOrEmpty(Pieces[x, start.PieceRow + y].Token))
+                {
+                    return true;
+                }
+
+                y = start.PieceRow < end.PieceRow ? y + 1 : y - 1; 
+            }
+
+            return false;
+        }
+
+        y = 0;
+        
+        for (var x = end.PieceColumn; x < start.PieceColumn; x++)
+        {
+            if (!string.IsNullOrEmpty(Pieces[x, start.PieceRow + y].Token))
+            {
+                return true;
+            }
+
+            y = start.PieceRow < end.PieceRow ? y + 1 : y - 1; 
+        }
+
+        return false;
     }
 }
