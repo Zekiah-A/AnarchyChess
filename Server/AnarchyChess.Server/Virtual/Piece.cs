@@ -2,15 +2,13 @@ using WatsonWebsocket;
 
 namespace AnarchyChess.Server.Virtual;
 
-public sealed record Piece
+/// <summary>
+/// If token is default, or empty, this piece is considered, and that tile is seen as empty, when this struct is
+/// passed around, you will always receive a copy, ref should always be used when mutating anything in here!
+/// </summary>
+public record struct Piece
 (
     string Token,
     PieceType Type,
-    PieceColour Colour,
-    
-    // TODO: We ditch these properties, and move fully to piece locator model
-    int BoardColumn,
-    int BoardRow,
-    int Column,
-    int Row
+    PieceColour Colour
 );

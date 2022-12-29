@@ -4,9 +4,10 @@ using Timer = System.Timers.Timer;
 
 namespace AnarchyChess.Server.Virtual;
 
+// ServerInstance should never have to see this class, only it's direct descendant, Map
 public sealed class Board
 {
-    public Piece?[,] Pieces { get; private set; }
+    public Piece[,] Pieces { get; private set; }
     public List<Piece> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
@@ -44,29 +45,32 @@ public sealed class Board
     }
     
     // Spawning piece is instant, but their turn to move is last
-    public bool TrySpawnPiece(Piece piece)
+    public bool TrySpawnPiece(Piece piece, PieceLocation location)
     {
-        if (Pieces[piece.Column, piece.Row] is not null)
+        if (!string.IsNullOrEmpty(Pieces[location.PieceColumn, location.PieceRow].Token))
         {
             return false;
         }
         
-        Pieces[piece.Column, piece.Row] = piece;
+        Pieces[location.PieceColumn, location.PieceRow] = piece;
         Turns.Add(piece);
         return true;
     }
     
-    public bool TryMovePiece(Piece piece, int toColumn, int toRow)
+    public bool TryMovePiece(string token, int toColumn, int toRow)
     {
         TurnTimer.Stop();
-        
+
+        var location = LocatePieceInstance(token);
+        var piece = Pieces[location.PieceColumn, location.PieceRow];
+
         if (Turns[CurrentTurn].Equals(piece))
         {
             return false;
         }
-        
-        var moveColumns = toColumn - piece.Column;
-        var moveRows = toColumn - piece.Row;
+
+        var moveColumns = toColumn - location.PieceColumn;
+        var moveRows = toColumn - location.PieceRow;
         
         // Limit every piece from phasing through another except knight/horse and king.
         var valid = false;
@@ -100,10 +104,10 @@ public sealed class Board
             case PieceType.Pawn:
                 valid = moveColumns switch
                 {
-                    0 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is null => true,
-                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is null => true,
-                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && Pieces[toColumn, toRow] is not null => true,
-                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && Pieces[toColumn, toRow] is not null => true,
+                    0 when moveRows is 1 && piece.Colour == PieceColour.White && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
+                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
+                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
+                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
                     _ => valid
                 };
 
@@ -139,7 +143,7 @@ public sealed class Board
         
         // If we are landing on an occupied space, we are taking that piece
         var taking = Pieces[toColumn, toColumn];
-        if (taking is not null)
+        if (!string.IsNullOrEmpty(taking.Token))
         {
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
@@ -150,31 +154,34 @@ public sealed class Board
         return true;
     }
 
-    public void DeletePiece(Piece piece)
+    public void DeletePiece(string token)
     {
+        var position = LocatePieceInstance(token);
+        var piece = Pieces[position.PieceColumn, position.PieceRow];
+        
         Turns.Remove(piece);
-        Pieces[piece.Row, piece.Column] = null;
+        Pieces[position.PieceColumn, position.PieceRow].Token = "";
     }
 
-    public (int PieceColumn, int PieceRow) LocatePieceInstance(string token)
+    public PieceLocation LocatePieceInstance(string token)
     {
         for (byte x = 0; x < Columns; x++)
         {
             for (byte y = 0; y < Rows; y++)
             {
                 var piece = Pieces[x, y];
-                if (piece is null)
+                if (string.IsNullOrEmpty(piece.Token))
                 {
                     continue;
                 }
                 
                 if (piece.Token.Equals(token))
                 {
-                    return (x, y);
+                    return new PieceLocation(x, y);
                 }
             }
         }
 
-        return (-1, -1);
+        return new PieceLocation(-1, -1);
     }
 }
