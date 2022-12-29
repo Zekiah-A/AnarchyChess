@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Xml;
 
 namespace AnarchyChess.Server.Virtual;
@@ -12,7 +13,14 @@ public sealed class Map
     public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan period = default)
     {
         Boards = new Board[columns, rows];
-        Boards.Fill(new Board(pieceColumns, pieceRows, period));
+
+        for (byte x = 0; x < columns; x++)
+        {
+            for (byte y = 0; y < rows; y++)
+            {
+                Boards[x, y] = new Board(x, y, pieceColumns, pieceRows, period);
+            }
+        }
     }
     
     public void ShiftAll(int directionX, int directionY)

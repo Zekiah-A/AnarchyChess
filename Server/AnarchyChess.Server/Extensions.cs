@@ -2,7 +2,7 @@ namespace AnarchyChess.Server;
 
 public static class Extensions
 {
-    public static (int Column, int Row) CoordinatesOf<T>(this T[,] matrix, T value)
+    public static (int Column, int Row) CoordinatesOf<T>(this T[,] matrix, T value) where T : notnull
     {
         var width = matrix.GetLength(0);
         var height = matrix.GetLength(1);
@@ -11,7 +11,7 @@ public static class Extensions
         {
             for (var y = 0; y < height; y++)
             {
-                if (matrix[x, y]!.Equals(value))
+                if (matrix[x, y].Equals(value))
                     return (x, y);
             }
         }

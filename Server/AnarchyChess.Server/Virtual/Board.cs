@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Timers;
 using AnarchyChess.Server.Events;
@@ -14,12 +15,15 @@ public sealed class Board
     private Timer TurnTimer { get; set; }
     private int Columns { get; }
     private int Rows { get; }
-    private Action<string>? Logger;
+    public byte Column { get; }
+    public byte Row { get; }
     public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
     public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
-    public Board(byte columns = 8, byte rows = 8, TimeSpan period = default)
+    public Board(byte row, byte column, byte columns = 8, byte rows = 8, TimeSpan period = default)
     {
+        Row = row;
+        Column = column;
         Rows = rows;
         Columns = columns;
         Turns = new List<Piece>();
@@ -50,6 +54,8 @@ public sealed class Board
             return false;
         }
         
+        piece
+            
         Pieces[column, row] = piece;
         Turns.Add(piece);
         return true;

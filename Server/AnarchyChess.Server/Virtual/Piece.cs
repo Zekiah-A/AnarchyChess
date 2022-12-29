@@ -6,6 +6,11 @@ public sealed record Piece
 (
     string Token,
     PieceType Type,
-    PieceColour Colour,
-    Board Board
-);
+    PieceColour Colour
+)
+{
+    public int BoardColumn { get; set; }
+    public int BoardRow { get; set; }
+    public int Column { get; set; }
+    public int Row { get; set; }
+};

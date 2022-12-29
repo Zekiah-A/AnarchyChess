@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using AnarchyChess.Server.Events;
@@ -16,14 +17,12 @@ public sealed class ServerInstance
     public Action<string>? Logger;
 
     private WatsonWsServer app;
-    private SHA256 sha256Hash;
 
     public ServerInstance(int port, Map? map = null, bool ssl = false, string? certificatePath = null, string? keyPath = null)
     {
         map ??= new Map();
         VirtualMap = map;
         app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.None, "localhost");
-        sha256Hash = SHA256.Create();
         
         foreach (var board in VirtualMap.Boards)
         {
@@ -74,16 +73,23 @@ public sealed class ServerInstance
                     {
                         RemoveClient(clientPiece);
                     }
+
+                    if (data.Length != 7)
+                    {
+                        Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet.");
+                        return;
+                    }
                     
-                    // Packet is boardRow = data[1], boardColumn = data[2], row = data[3],
-                    // column = data[4], pieceType = data[5], pieceColour = data[6]
+                    // Packet is boardColumn = data[1], boardRow = data[2], column = data[3],
+                    // row = data[4], pieceType = data[5], pieceColour = data[6]
                     ref var boardReference = ref VirtualMap.Boards[data[1], data[2]];
 
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
-                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6], boardReference)
+                    var piece = new Piece(token, (PieceType) data[5], (PieceColour) data[6])
                     {
-                        Board = boardReference
+                        BoardColumn = boardReference.Column,
+                        BoardRow = boardReference.Row
                     };
                     
                     if (!boardReference.TrySpawnPiece(piece, data[3], data[4]))
@@ -104,7 +110,7 @@ public sealed class ServerInstance
                     // Send to all connected clients
                     var sendBuffer = new byte[6];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
-                    SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
+                    SerialisePiecePacket(piece).CopyTo(sendBuffer, 1); //ok so we fail hnere
                     
                     foreach (var client in app.Clients)
                     {
@@ -125,11 +131,11 @@ public sealed class ServerInstance
                     var boardColumn = data[2];
                     
                     // Attempt move piece, reject if move is invalid 
-                    if (!clientPiece.Board.TryMovePiece(clientPiece, boardRow, boardColumn))
+                    /*if (!clientPiece.Board.TryMovePiece(clientPiece, boardRow, boardColumn))
                     {
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
-                    }
+                    }*/
 
                     // Send to all connected clients
                     var sendBuffer = new byte[9];
@@ -179,8 +185,8 @@ public sealed class ServerInstance
     private void RemoveClient(Piece clientPiece)
     {
         // Delete piece from that board
-        var pieceCoordinates = clientPiece.Board.Pieces.CoordinatesOf(clientPiece);
-        clientPiece.Board.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;
+        /*var pieceCoordinates = clientPiece.Board.Pieces.CoordinatesOf(clientPiece);
+        clientPiece.Board.Pieces[pieceCoordinates.Row, pieceCoordinates.Column] = null;*/
 
         // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
         var killBuffer = new byte[6];
@@ -228,10 +234,11 @@ public sealed class ServerInstance
     {
         return new[]
         {
-            (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
+            (byte) 1, (byte) 2
+            /*(byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row,
             (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column,
             (byte) piece.Board.Pieces.CoordinatesOf(piece).Row,
-            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column,
+            (byte) piece.Board.Pieces.CoordinatesOf(piece).Column*/
         };
     }
     
@@ -250,17 +257,17 @@ public sealed class ServerInstance
     }
 
     /// <summary>
-    /// Length = 8
+    /// Length = 9
     /// </summary>
     /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket".</param>
     private byte[] SerialiseMovePacket(Piece piece, byte[] previousPosition)
     {
-        var buffer = new byte[8];
+        var buffer = new byte[9];
         previousPosition.CopyTo(buffer, 0);
-        buffer[4] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
-        buffer[5] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
-        buffer[6] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
-        buffer[7] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;
+        /*buffer[5] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Row;
+        buffer[6] = (byte) VirtualMap.Boards.CoordinatesOf(piece.Board).Column;
+        buffer[7] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Row;
+        buffer[8] = (byte) piece.Board.Pieces.CoordinatesOf(piece).Column;*/
         return buffer;
     }
 
