@@ -21,7 +21,7 @@ public sealed class ServerInstance
     {
         map ??= new Map();
         VirtualMap = map;
-        app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.None, "localhost");
+        app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.Trace, "localhost");
         
         foreach (var board in VirtualMap.Boards)
         {
@@ -65,8 +65,8 @@ public sealed class ServerInstance
                 case ClientPackets.Spawn:
                 {
                     // Packet is boardColumn = data[1], boardRow = data[2], column = data[3],
-                    // row = data[4], pieceType = data[5], pieceColour = data[6]
-                    if (data.Length != 7 && data.Length != 43)
+                    // row = data[4], pieceType = data[5], pieceColour = data[6], or token = data[1..]
+                    if (data.Length != 7 && data.Length != 37)
                     {
                         Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet length.");
                         return;
@@ -211,7 +211,6 @@ public sealed class ServerInstance
         };
         
         await app.StartAsync();
-        await Task.Delay(-1);
     }
 
     private void DeleteIdlePieces(object? state)

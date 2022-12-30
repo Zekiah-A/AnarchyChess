@@ -161,6 +161,10 @@ input[type="button"]:hover {
     display: none;
 }
 
+.scroll-picker img {
+    width: 100%;
+}
+
 /*
 Cursed fade out when there is more to display effect - we disable for now
 .scroll-picker::after {
