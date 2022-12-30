@@ -17,6 +17,7 @@ public enum ServerPackets
     RejectMove,
     RejectSpawn,
     RejectChat,
+    RejectToken,
     FriendRequest,
     FriendAdded,
     FriendRemoved,

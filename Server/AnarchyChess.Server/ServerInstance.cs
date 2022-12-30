@@ -9,9 +9,10 @@ namespace AnarchyChess.Server;
 
 public sealed class ServerInstance
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public Map VirtualMap { get; }
     public Dictionary<ClientMetadata, string> Clients { get; set; } = new();
+    public Dictionary<ClientMetadata, DateTime> IdlePieces = new();
+    public Timer IdleDeletionTick; 
     public Action<string>? Logger;
 
     private WatsonWsServer app;
@@ -27,6 +28,8 @@ public sealed class ServerInstance
             board.PieceKilledEvent += OnPieceKilled;
             board.TurnChangedEvent += OnTurnChanged;
         }
+
+        IdleDeletionTick = new Timer(DeleteIdlePieces, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
     }
 
     public async Task StartAsync()
@@ -65,14 +68,36 @@ public sealed class ServerInstance
                     // row = data[4], pieceType = data[5], pieceColour = data[6]
                     if (data.Length != 7 && data.Length != 43)
                     {
-                        Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet.");
+                        Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet length.");
                         return;
                     }
 
-                    //TODO: Implement token re-authentication
                     if (Clients.TryGetValue(args.Client, out var clientToken))
                     {
-                        RemoveClient(clientToken);
+                        RemovePiece(clientToken);
+                    }
+                    
+                    // We try to reconnect a client to their piece if they reconnect with the same token. 
+                    if (data.Length == 43)
+                    {
+                        var authenticatingToken = Encoding.UTF8.GetString(data[8..]);
+                        var existingClient = Clients.FirstOrDefault(client =>
+                            client.Value.Equals(authenticatingToken)).Key;
+                        
+                        // TODO: This should be null in some cases.
+                        if (existingClient is null)
+                        {
+                            Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid authentication token.");
+                            app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectToken });
+                            return;
+                        }
+
+                        // Re-hook up this client to their rightful auth token
+                        Clients.Remove(existingClient);
+                        Clients.Add(args.Client, authenticatingToken);
+                        
+                        // Skip all the ceremony, and act like they were connected all along
+                        break;
                     }
                     
                     // Add piece to board
@@ -83,14 +108,14 @@ public sealed class ServerInstance
                         (PieceType) data[5],
                         (PieceColour) data[6]
                     );
-                    
+                
                     var location = new BoardLocation(
                         data[1],
                         data[2],
                         data[3],
                         data[4]
                     );
-                    
+                
                     if (!VirtualMap.TrySpawnPiece(piece, location))
                     {
                         Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid spawn location.");
@@ -107,12 +132,12 @@ public sealed class ServerInstance
                     guidBuffer.CopyTo(tokenBuffer, 1);
 
                     app.SendAsync(args.Client, tokenBuffer);
-                    
+                
                     // Send to all connected clients
                     var sendBuffer = new byte[6];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
                     SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
-                    
+                
                     foreach (var client in app.Clients)
                     {
                         app.SendAsync(client, sendBuffer);
@@ -180,19 +205,36 @@ public sealed class ServerInstance
 
         app.ClientDisconnected += (sender, args) =>
         {
-            // TODO: We do not necessarily have to kill players off on disconnect, for example, on server shutdown,
-            // TODO: players should be able to reauthenticate into their piece via the token saved in localstorage.
-            if (Clients.TryGetValue(args.Client, out var clientToken))
-            {
-                RemoveClient(clientToken);
-            }
+            // We queue these clients to be fully removed from the game after 5 minutes of disconnection
+            // If they reconnect before they will still be able to reauthenticate into their piece via their token.
+            IdlePieces.Add(args.Client, DateTime.Now.AddMinutes(5));
         };
         
         await app.StartAsync();
         await Task.Delay(-1);
     }
 
-    private void RemoveClient(string token)
+    private void DeleteIdlePieces(object? state)
+    {
+        foreach (var pair in IdlePieces)
+        {
+            // We skip deleting clients whose times have not yet expired
+            if (pair.Value < DateTime.Now)
+            {
+                continue;
+            }
+            
+            if (Clients.TryGetValue(pair.Key, out var clientToken))
+            {
+                RemovePiece(clientToken);
+            }
+            
+            Clients.Remove(pair.Key);
+            IdlePieces.Remove(pair.Key);
+        }
+    }
+
+    private void RemovePiece(string token)
     {
         // Delete piece from that board
         VirtualMap.DeletePiece(token);
@@ -210,7 +252,7 @@ public sealed class ServerInstance
     
     private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
     {
-        RemoveClient(args.Killed.Token);
+        RemovePiece(args.Killed.Token);
         Logger?.Invoke($"Piece {args.Killed.Token} was killed by {args.Killer.Token}.");
     }
 
@@ -282,3 +324,6 @@ public sealed class ServerInstance
             .Pieces[located.BoardColumn, located.BoardRow];
     }
 }
+
+// TODO: When saving backups, including client pieces is fine. But when saving board state, for example, with a server
+// TODO: restart, we should not include the clients there, we only need to save the parameters used to create such board.
