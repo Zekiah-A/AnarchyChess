@@ -57,36 +57,33 @@ public sealed class Board
         return true;
     }
     
-    public bool TryMovePiece(string token, int toColumn, int toRow)
+    public bool TryMovePiece(string token, PieceLocation newLocation)
     {
         TurnTimer.Stop();
 
-        var location = LocatePieceInstance(token);
-        var piece = Pieces[location.PieceColumn, location.PieceRow];
+        var currentLocation = LocatePieceInstance(token);
+        var piece = Pieces[currentLocation.PieceColumn, currentLocation.PieceRow];
 
         if (Turns[CurrentTurn].Equals(piece))
         {
             return false;
         }
-
-        var toWhere = new PieceLocation(toColumn, toRow);
-        var moveColumns = toColumn - location.PieceColumn;
-        var moveRows = toRow - location.PieceRow;
         
-        // Limit every piece from phasing through another except knight/horse and king.
+        var moveColumns = newLocation.PieceColumn - currentLocation.PieceColumn;
+        var moveRows = newLocation.PieceRow - currentLocation.PieceRow;
+        
         var valid = false;
         switch (piece.Type)
         {
             case PieceType.Bishop:
                 valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && Math.Abs(moveRows) == Math.Abs(moveColumns);
 
-                if (PieceBlocksDiagonal(location, toWhere))
+                if (PieceBlocksDiagonal(currentLocation, newLocation))
                 {
                     valid = false;
                 }
                 break;
             case PieceType.King:
-                // TODO: Stop king from walking into check
                 valid = moveColumns switch
                 {
                     1 or -1 when moveRows is 0 => true,
@@ -106,26 +103,26 @@ public sealed class Board
             case PieceType.Pawn:
                 valid = moveColumns switch
                 {
-                    0 when moveRows is 1 && piece.Colour == PieceColour.White && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
-                    0 when moveRows is -1 && piece.Colour == PieceColour.Black && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
-                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
-                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black && string.IsNullOrEmpty(Pieces[toColumn, toRow].Token) => true,
+                    1 when moveRows is 0 && piece.Colour == PieceColour.White => true,
+                    -1 when moveRows is 0 && piece.Colour == PieceColour.Black => true,
+                    1 or -1 when moveRows is 1 && piece.Colour == PieceColour.White &&
+                        !string.IsNullOrEmpty(Pieces[newLocation.PieceColumn, newLocation.PieceRow].Token) => true,
+                    1 or -1 when moveRows is -1 && piece.Colour == PieceColour.Black &&
+                        !string.IsNullOrEmpty(Pieces[newLocation.PieceColumn, newLocation.PieceRow].Token) => true,
                     _ => valid
                 };
                 break;
             case PieceType.Queen:
-                valid = moveColumns is < 8 and > -8 && moveRows is < 8 and > -8 && Math.Abs(moveRows) == Math.Abs(moveColumns);
-                
                 valid = moveColumns switch
                 {
                     0 when moveRows is < 8 and > -8 => true,
                     < 8 and > -8 when moveRows is 0 => true,
-                    < 8 and > -8 when moveRows is < 8 and > -8 && moveRows == moveColumns => true,
+                    < 8 and > -8 when moveRows is < 8 and > -8 && Math.Abs(moveRows) == Math.Abs(moveColumns) => true,
                     _ => valid
                 };
 
-                if (PieceBlocksHorizontal(location, toWhere) || PieceBlocksVertical(location, toWhere)
-                    || PieceBlocksDiagonal(location, toWhere))
+                if (PieceBlocksHorizontal(currentLocation, newLocation) || PieceBlocksVertical(currentLocation, newLocation)
+                                                                        || PieceBlocksDiagonal(currentLocation, newLocation))
                 {
                     valid = false;
                 }
@@ -138,7 +135,7 @@ public sealed class Board
                     _ => valid
                 };
 
-                if (PieceBlocksHorizontal(location, toWhere) || PieceBlocksVertical(location, toWhere))
+                if (PieceBlocksHorizontal(currentLocation, newLocation) || PieceBlocksVertical(currentLocation, newLocation))
                 {
                     valid = false;
                 }
@@ -151,8 +148,8 @@ public sealed class Board
         }
         
         // If we are landing on an occupied space, we are taking that piece
-        var taking = Pieces[toColumn, toColumn];
-        if (!string.IsNullOrEmpty(taking.Token))
+        var taking = Pieces[newLocation.PieceColumn, newLocation.PieceRow];
+        if (!string.IsNullOrEmpty(taking.Token) && taking.Colour != piece.Colour)
         {
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
@@ -256,7 +253,6 @@ public sealed class Board
 
         if (end.PieceColumn > start.PieceColumn)
         {
-
             for (var x = start.PieceColumn; x < end.PieceColumn; x++)
             {
                 if (!string.IsNullOrEmpty(Pieces[x, start.PieceRow + y].Token))

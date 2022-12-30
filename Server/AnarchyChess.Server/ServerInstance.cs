@@ -31,15 +31,10 @@ public sealed class ServerInstance
 
     public async Task StartAsync()
     {
-        // Encode entire virtual map to JSON to get client up to date
         app.ClientConnected += (sender, args) =>
         {
-            // We can not serialise 2D arrays to JSON, this makes just sending the virtual board impossible, Therefore
-            // we send the player the data for every single piece, followed by the params used to construct the boards
-            // on the map, so that the client can reconstruct it by itself.
-            
-            // (byte) Packet code, (byte) boards columns, (byte) boards rows,
-            // (byte) pieces columns, (byte) pieces rows, (byte..[]) pieces
+            // (byte) Packet code = data[0], (byte) boards columns = data[1], (byte) boards rows = data[2],
+            // (byte) pieces columns = data[3], (byte) pieces rows = data[4], (byte..[]) pieces data[5..]
             var buffer = new byte[Clients.Count * 5 + 5];
             buffer[0] = (byte) ServerPackets.Canvases;
             buffer[1] = (byte) VirtualMap.Boards.GetLength(0);
@@ -66,20 +61,20 @@ public sealed class ServerInstance
             {
                 case ClientPackets.Spawn:
                 {
-                    //TODO: Implement token re-authentication
-                    if (Clients.TryGetValue(args.Client, out var clientToken))
-                    {
-                        RemoveClient(clientToken);
-                    }
-
                     // Packet is boardColumn = data[1], boardRow = data[2], column = data[3],
                     // row = data[4], pieceType = data[5], pieceColour = data[6]
-                    if (data.Length != 7)
+                    if (data.Length != 7 && data.Length != 43)
                     {
                         Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet.");
                         return;
                     }
 
+                    //TODO: Implement token re-authentication
+                    if (Clients.TryGetValue(args.Client, out var clientToken))
+                    {
+                        RemoveClient(clientToken);
+                    }
+                    
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
                     var piece = new Piece
@@ -96,8 +91,9 @@ public sealed class ServerInstance
                         data[4]
                     );
                     
-                    if (VirtualMap.TrySpawnPiece(piece, location))
+                    if (!VirtualMap.TrySpawnPiece(piece, location))
                     {
+                        Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid spawn location.");
                         app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectSpawn });
                         return;
                     }
@@ -125,19 +121,26 @@ public sealed class ServerInstance
                 }
                 case ClientPackets.Move:
                 {
+                    // Packet is boardColumn = data[1], boardRow = data[2], pieceColumn = data[3], pieceRow = data[4]
+                    if (data.Length != 5)
+                    {
+                        return;
+                    }
+                    
                     if (!Clients.TryGetValue(args.Client, out var clientToken))
                     {
+                        Logger?.Invoke($"Move rejected from client {args.Client} due to no registered client token.");
                         return;
                     }
 
                     // Record previous move packet, board row and board column, before manipulating piece position.
-                    var previousMove = SerialisePiecePacket(GetPieceInstance(clientToken));
-                    var boardRow = data[1];
-                    var boardColumn = data[2];
+                    var previousMove = SerialisePositionPacket(clientToken);
+                    var newLocation = new BoardLocation(data[1], data[2], data[3], data[4]);
                     
                     // Attempt move piece, reject if move is invalid 
-                    if (!VirtualMap.TryMovePiece(clientToken, boardRow, boardColumn))
+                    if (!VirtualMap.TryMovePiece(clientToken, newLocation))
                     {
+                        Logger?.Invoke($"Move rejected from client {args.Client} due to invalid piece move location.");
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                         return;
                     }
@@ -155,8 +158,10 @@ public sealed class ServerInstance
                 }
                 case ClientPackets.Chat:
                 {
+                    // Packet is UTF-8 encoded message text = data [1..]
                     if (data.Length > 250)
                     {
+                        Logger?.Invoke($"Chat rejected from client {args.Client} due to too long message length.");
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
                         return;
                     }
@@ -192,7 +197,7 @@ public sealed class ServerInstance
         // Delete piece from that board
         VirtualMap.DeletePiece(token);
 
-        // We send the Map boards Row, Column Board Row, Column and finally the PieceType (not used)
+        // We send a position packet to say where the killed player was
         var killBuffer = new byte[6];
         killBuffer[0] = (byte) ServerPackets.PieceKilled;
         SerialisePositionPacket(token).CopyTo(killBuffer, 1);
@@ -205,19 +210,13 @@ public sealed class ServerInstance
     
     private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
     {
-        var killBuffer = new byte[10];
-        killBuffer[0] = (byte) ServerPackets.PieceKilled;
-        SerialisePositionPacket(args.Killed.Token).CopyTo(killBuffer, 1);
-        SerialisePositionPacket(args.Killer.Token).CopyTo(killBuffer, 5);
-        
-        foreach (var client in app.Clients)
-        {
-            app.SendAsync(client, killBuffer.ToArray());
-        }
+        RemoveClient(args.Killed.Token);
+        Logger?.Invoke($"Piece {args.Killed.Token} was killed by {args.Killer.Token}.");
     }
 
     private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
     {
+        // Turn change packet is data[1..4] = (int) current turn, data[5..9] = position packet of currently playing piece.
         var turnBuffer = new byte[9];
         turnBuffer[0] = (byte) ServerPackets.TurnChanged;
         BinaryPrimitives.WriteUInt32BigEndian(turnBuffer.AsSpan()[1..], (uint) args.Turn);
@@ -228,13 +227,14 @@ public sealed class ServerInstance
             app.SendAsync(client, turnBuffer.ToArray());   
         }
     }
-    
+
     /// <summary>
     /// Length = 4
     /// </summary>
     private byte[] SerialisePositionPacket(string token)
     {
         var located = VirtualMap.LocatePieceInstance(token);
+        
         return new[]
         {
             (byte) located.BoardColumn,
@@ -245,15 +245,14 @@ public sealed class ServerInstance
     }
     
     /// <summary>
-    /// Length = 6
+    /// Length = 7
     /// </summary>
     private byte[] SerialisePiecePacket(Piece piece)
     {
         var buffer = new byte[6];
-        
         SerialisePositionPacket(piece.Token).CopyTo(buffer, 0);
-        buffer[4] = (byte) piece.Type;
-        buffer[5] = (byte) piece.Colour;
+        buffer[5] = (byte) piece.Type;
+        buffer[6] = (byte) piece.Colour;
         
         return buffer;
     }
@@ -271,6 +270,7 @@ public sealed class ServerInstance
         buffer[6] = (byte) located.BoardRow;
         buffer[7] = (byte) located.PieceColumn;
         buffer[8] = (byte) located.PieceRow;
+        
         return buffer;
     }
     
@@ -278,7 +278,6 @@ public sealed class ServerInstance
     {
         var located = VirtualMap.LocatePieceInstance(token);
         
-        //if (located != (-1, -1, -1, -1))
         return ref VirtualMap.Boards[located.BoardColumn, located.BoardRow]
             .Pieces[located.BoardColumn, located.BoardRow];
     }

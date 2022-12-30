@@ -30,7 +30,6 @@ public sealed class Map
         }
     }
 
-    // TODO: Better if we , so we can overwrite to the empty piece struct already there
     public bool TrySpawnPiece(Piece piece, BoardLocation location)
     {
         if (!Boards[location.BoardColumn, location.BoardRow].TrySpawnPiece(piece, location))
@@ -42,11 +41,31 @@ public sealed class Map
         return true;
     }
 
-    public bool TryMovePiece(string token, int toColumn, int toRow)
+    public bool TryMovePiece(string token, BoardLocation newLocation)
     {
-        var location = LocatePieceInstance(token);
+        var currentLocation = LocatePieceInstance(token);
+        var board = Boards[currentLocation.BoardColumn, currentLocation.BoardRow];
+
+        // Check if this movement across boards is legal before performing board-specific checks
+        if (newLocation.BoardColumn < currentLocation.BoardColumn)
+        {
+            
+        }
+        else if (newLocation.BoardColumn > currentLocation.BoardColumn)
+        {
+            
+        }
+
+        if (newLocation.BoardRow < currentLocation.BoardRow)
+        {
+            
+        }
+        else if (newLocation.BoardRow > currentLocation.BoardRow)
+        {
+            
+        }
         
-        if (!Boards[location.BoardColumn, location.BoardRow].TryMovePiece(token, toColumn, toRow))
+        if (!board.TryMovePiece(token, newLocation))
         {
             // TODO: Check for if ToColumn/ToRow is off that piece's current board, if so, initiate a piece transfer
             // TODO: to that new board. Mutating the piece's boardrow and coardcolumn values (via reference).
@@ -54,7 +73,7 @@ public sealed class Map
         }
 
         TokenLocations.Remove(token);
-        TokenLocations.Add(token, location);
+        TokenLocations.Add(token, currentLocation);
         return true;
     }
 
@@ -72,7 +91,7 @@ public sealed class Map
         if (TokenLocations.TryGetValue(token, out var location))
         {
             var pieceLocation = Boards[location.BoardColumn, location.BoardRow].LocatePieceInstance(token);
-            return location with { PieceRow = pieceLocation.PieceRow, PieceColumn = pieceLocation.PieceColumn };
+            return location with { PieceColumn = pieceLocation.PieceColumn, PieceRow = pieceLocation.PieceRow };
         }
 
         for (byte x = 0; x < Columns; x++)
@@ -86,7 +105,7 @@ public sealed class Map
                     continue;
                 }
                 
-                var foundLocation = new BoardLocation(x, y, pieceLocation.PieceRow, pieceLocation.PieceColumn);
+                var foundLocation = new BoardLocation(x, y, pieceLocation.PieceColumn, pieceLocation.PieceRow);
                 TokenLocations.Add(token, foundLocation);
                 return foundLocation;
             }

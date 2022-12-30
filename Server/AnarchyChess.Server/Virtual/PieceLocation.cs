@@ -2,8 +2,8 @@ namespace AnarchyChess.Server.Virtual;
 
 public record struct PieceLocation
 (
-    int PieceRow,
-    int PieceColumn
+    int PieceColumn,
+    int PieceRow
 )
 {
     public static PieceLocation Default => new(-1, -1);
