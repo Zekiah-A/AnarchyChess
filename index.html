@@ -253,6 +253,9 @@
                     let boardsRows = data.getUint8(1), boardsColumns = data.getUint8(2),
                         pieceRows = data.getUint8(3), pieceColumns = data.getUint8(4)
 
+                    COLUMNS = pieceColumns
+                    ROWS = pieceRows
+
                     board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px"
                     board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px"
                     
@@ -352,28 +355,28 @@
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
         while (tileColumn < 0) {
             canvas = board.querySelector(
-                `[column="${Number(canvas.getAttribute("column")) - 1}"][row="${canvas.getAttribute("row")}"]`)
+                `[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`)
             if (canvas == null) return
 
                 tileColumn = COLUMNS - Math.abs(tileColumn)
         }
         while (tileRow < 0) {
             canvas = board.querySelector(
-                `[column="${canvas.getAttribute("column")}"][row="${Number(canvas.getAttribute("row")) - 1}"]`)
+                `[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") - 1}"]`)
             if (canvas == null) return
 
             tileRow = ROWS - Math.abs(tileRow)
         }
         while (tileColumn > COLUMNS - 1) {
             canvas = board.querySelector(
-                `[column="${Number(canvas.getAttribute("column")) + 1}"][row="${canvas.getAttribute("row")}"]`)
+                `[column="${+canvas.getAttribute("column") + 1}"][row="${canvas.getAttribute("row")}"]`)
             if (canvas == null) return
 
             tileColumn -= COLUMNS
         }
         while (tileRow > ROWS - 1) {
             canvas = board.querySelector(
-                `[column="${canvas.getAttribute("column")}"][row="${Number(canvas.getAttribute("row")) + 1}"]`)
+                `[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") + 1}"]`)
             if (canvas == null) return
 
             tileRow -= ROWS
@@ -388,8 +391,8 @@
 
     function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
         const ctx = canvas.getContext("2d", { alpha: false })
-        const column = Number(event.target.getAttribute("column"))
-        const row = Number(event.target.getAttribute("row")) 
+        const column = +event.target.getAttribute("column")
+        const row = +event.target.getAttribute("row")
         const pieces = map.boards[column][row].pieces
 
         // TODO: Show moves that would put you in danger (or in king's case, check)
@@ -552,6 +555,7 @@
         const ctx = canvas.getContext("2d", { alpha: false })
         const virtualBoard = map.boards[mapColumn][mapRow]
 
+        ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < virtualBoard.pieceColumns; x++) {
             for (let y = 0; y < virtualBoard.pieceRows; y++) {
                 let piece = virtualBoard[x, y]
@@ -559,13 +563,15 @@
                     continue
                 
                 let path = new Image()
-
                 path.src = "Assets/" + Object.keys(pieceTypes)[piece.type].toLowerCase()
                     + piece.colour == pieceColours.White ? "white" : "" + ".svg"
                 
-                path.onload = () => ctx.drawImage(path, 10, 10)
+                path.onload = () => {
+                    ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT)
+                }
             }
         }
+        ctx.filter = ""
     }
 
     function drawCheckeredBackground(canvas) {
@@ -631,8 +637,10 @@
         if (event.target != document.body && !board.contains(event.target)) return
         clearInterval(positionEase)
 
-        board.style.left = board.offsetLeft + event.movementX + "px"
-        board.style.top = board.offsetTop + event.movementY + "px"
+        // Constrain position
+        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
+        board.style.left = Math.max(centreX - board.offsetWidth * zoom, Math.min(centreX, board.offsetLeft + event.movementX)) + "px"
+        board.style.top =  Math.max(centreY - board.offsetHeight * zoom, Math.min(centreY, board.offsetTop + event.movementY))  + "px"
     }
 
     function onWheelBody(event) {
@@ -649,7 +657,7 @@
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
         boardIndicator.textContent = 
-            `${Number(event.target.getAttribute("column")) + 1}, ${Number(event.target.getAttribute("row")) + 1}`
+            `${+event.target.getAttribute("column") + 1}, ${+event.target.getAttribute("row") + 1}`
     }
 
     connect(localStorage.address || "wss://server.poemanthology.org:8083")

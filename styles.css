@@ -36,7 +36,7 @@ body {
 
 input[type="button"] {
     border: none;
-    padding: 12px 60px 12px 60px;
+    padding: 12px 12px;
     border-radius: 4px;
     background-color: var(--ui-input);
     transition: background-color .1s;
