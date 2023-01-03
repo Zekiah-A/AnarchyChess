@@ -12,8 +12,8 @@ public sealed class Map
     public Board[,] Boards { get; private set; }
     public byte Columns { get; set; }
     public byte Rows { get; set; }
-    public Dictionary<string, BoardLocation> TokenLocations { get; private set; } 
-
+    public Dictionary<string, BoardLocation> TokenLocations { get; private set; }
+    
     public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan period = default)
     {
         Boards = new Board[columns, rows];

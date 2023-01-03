@@ -49,7 +49,7 @@ public sealed class ServerInstance
             foreach (var clientPiece in Clients.Values.Select(pieceToken => GetPieceInstance(pieceToken)))
             {
                 SerialisePiecePacket(clientPiece).CopyTo(buffer, i);
-                i += 4;
+                i += 7;
             }
 
             app.SendAsync(args.Client, buffer);
@@ -71,20 +71,15 @@ public sealed class ServerInstance
                         Logger?.Invoke($"Rejected spawn from client {args.Client.IpPort} due to invalid packet length.");
                         return;
                     }
-
-                    if (Clients.TryGetValue(args.Client, out var clientToken))
-                    {
-                        RemovePiece(clientToken);
-                    }
                     
                     // We try to reconnect a client to their piece if they reconnect with the same token. 
-                    if (data.Length == 43)
+                    if (data.Length == 37)
                     {
                         var authenticatingToken = Encoding.UTF8.GetString(data[8..]);
-                        var existingClient = Clients.FirstOrDefault(client =>
-                            client.Value.Equals(authenticatingToken)).Key;
-                        
-                        // TODO: This should be null in some cases.
+                        var existingClient = Clients
+                            .Where(clientPair => clientPair.Value.Equals(authenticatingToken))
+                            .Select(clientPair => clientPair.Key).FirstOrDefault();
+
                         if (existingClient is null)
                         {
                             Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid authentication token.");
@@ -100,6 +95,12 @@ public sealed class ServerInstance
                         break;
                     }
                     
+                    // Remove if they already have a piece on the board
+                    if (Clients.TryGetValue(args.Client, out var clientToken))
+                    {
+                        RemovePiece(clientToken);
+                    }
+
                     // Add piece to board
                     var token = Guid.NewGuid().ToString();
                     var piece = new Piece
@@ -166,7 +167,7 @@ public sealed class ServerInstance
                     if (!VirtualMap.TryMovePiece(clientToken, newLocation))
                     {
                         Logger?.Invoke($"Move rejected from client {args.Client} due to invalid piece move location.");
-                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
+                        app.SendAsync(args.Client, new[] { (byte) ServerPackets.RejectMove });
                         return;
                     }
 
@@ -187,7 +188,7 @@ public sealed class ServerInstance
                     if (data.Length > 250)
                     {
                         Logger?.Invoke($"Chat rejected from client {args.Client} due to too long message length.");
-                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
+                        app.SendAsync(args.Client, new[] { (byte) ServerPackets.RejectChat });
                         return;
                     }
 
@@ -326,3 +327,4 @@ public sealed class ServerInstance
 
 // TODO: When saving backups, including client pieces is fine. But when saving board state, for example, with a server
 // TODO: restart, we should not include the clients there, we only need to save the parameters used to create such board.
+// TODO: Include a copy of clients in save to skip all of this.

@@ -250,8 +250,8 @@
 
             switch (data.getUint8(0)) {
                 case serverPackets.Canvases: {
-                    let boardsRows = data.getUint8(1), boardsColumns = data.getUint8(2),
-                        pieceRows = data.getUint8(3), pieceColumns = data.getUint8(4)
+                    let boardsColumns = data.getUint8(1), boardsRows = data.getUint8(2),
+                    pieceColumns = data.getUint8(3), pieceRows = data.getUint8(4)
 
                     COLUMNS = pieceColumns
                     ROWS = pieceRows
@@ -262,9 +262,9 @@
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
                     let pieceArray = data.buffer.slice(5)
-                    for (let i = 0; i < pieceArray.length; i += 6) {
+                    for (let i = 0; i < pieceArray.length; i += 7) {
                         let mapRow, mapColumn, boardRow, boardColumn, type, colour 
-                        [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 6)
+                        [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 7)
                         
                         // Add piece to board at right place, piece type is at index 4, colour is at index 5 
                         map.boards[mapRow][mapColumn].pieces[boardRow][boardColumn] = new Piece(type, colour)
@@ -319,7 +319,7 @@
         }
         
         ws.onclose = (event) => {
-
+            console.error(event)
         }
     }
 
@@ -346,6 +346,7 @@
 
         board.querySelectorAll("canvas").forEach(canvas => {
             drawCheckeredBackground(canvas)
+            drawPieces(canvas)
             canvas.addEventListener("mousedown", onCanvasMouseDown)
         })
     }
@@ -550,10 +551,9 @@
         })
     }
 
-    function drawPieces(mapColumn, mapRow) {
-        const canvas = board.querySelector(`[column="${mapColumn}"][row="${mapRow}"]`)
+    function drawPieces(canvas) {
         const ctx = canvas.getContext("2d", { alpha: false })
-        const virtualBoard = map.boards[mapColumn][mapRow]
+        const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]
 
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < virtualBoard.pieceColumns; x++) {
