@@ -202,7 +202,6 @@
     const decoder = new TextDecoder()
 </script>
 <script>
-
     let ws = null
     let map = null
     let dragging = false
@@ -262,12 +261,10 @@
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
                     let pieceArray = data.buffer.slice(5)
-                    for (let i = 0; i < pieceArray.length; i += 7) {
-                        let mapRow, mapColumn, boardRow, boardColumn, type, colour 
-                        [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 7)
-                        
-                        // Add piece to board at right place, piece type is at index 4, colour is at index 5 
-                        map.boards[mapRow][mapColumn].pieces[boardRow][boardColumn] = new Piece(type, colour)
+                    for (let i = 0; i < pieceArray.length; i += 6) {
+                        let mapColumn, mapRow, boardColumn, boardRow, type, colour 
+                        [mapColumn, mapRow, boardColumn, boardRow, type, colour] = pieceArray.slice(i, i + 6)
+                        map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = new Piece(type, colour)
                     }
 
                     createAllCanvases()
@@ -284,11 +281,21 @@
                     break
                 }
                 case serverPackets.Move: {
+                    // TODO: Animate the move of the piece to new position
+                    let mapColumn, mapRow, boardColumn, boardRow, newMapColumn, newMapRow, bewBoardColumn, newBoardRow
 
+                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = null
+                    map.boards[newMapColumn][newMapRow].pieces[newBoardColumn][newBboardRow] = previous
+
+                    drawBoard(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
+                    drawBoard(document.querySelector(`[column="${newBoardColumn}"][row="${newBboardRow}"]`))
                     break
                 }
                 case serverPackets.Spawn: {
-                    
+                    let mapRow, mapColumn, boardRow, boardColumn, type, colour 
+                    [mapColumn ,mapRow, boardColumn, boardRow, type, colour] = pieceArray.slice(1)
+                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = new Piece(type, colour)
+                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
                     break
                 }
                 case serverPackets.RejectSpawn: {
@@ -554,7 +561,7 @@
     function drawPieces(canvas) {
         const ctx = canvas.getContext("2d", { alpha: false })
         const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]
-
+        
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < virtualBoard.pieceColumns; x++) {
             for (let y = 0; y < virtualBoard.pieceRows; y++) {
