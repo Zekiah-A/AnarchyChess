@@ -135,11 +135,15 @@ public sealed class ServerInstance
                     app.SendAsync(args.Client, tokenBuffer);
                 
                     // Send to all connected clients
-                    var sendBuffer = new byte[7];
+                    var sendBuffer = new byte[8];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
                     SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
-                
-                    foreach (var client in app.Clients)
+                    
+                    sendBuffer[7] = 255;
+                    app.SendAsync(args.Client, sendBuffer);
+                    sendBuffer[7] = 0;
+                    
+                    foreach (var client in app.Clients.Where(client => client != args.Client))
                     {
                         app.SendAsync(client, sendBuffer);
                     }

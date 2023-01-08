@@ -103,9 +103,8 @@
             <div selected class="black-white" style="color: black; background-color: white;">White</div>
         </div>
         <div style="flex-grow: 1;"></div>
-        <input value="Play" type="button" onclick="
+        <input style="width: 40%;" value="Play" type="button" onclick="
             mainMenu.style.display = 'none';
-            spawnMenu.style.display = 'flex';
             selectSpawnLocation()
         ">
         <div style="flex-grow: 1;"></div>
@@ -114,8 +113,29 @@
     <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
         <h2>Choose your spawn location</h2>
         <div class="dual-options">
-            <input value="Spawn by friend" type="button" style="pointer-events: none;">
-            <input value="Random location" type="button">
+            <input id="tokenSpawnButton" value="Continue from last location" type="button" onclick="
+                let reauthArray = new Uint8Array(37)
+                let token = encoder.encode(localStorage.token)
+
+                reauthArray[0] = clientPackets.Spawn
+
+                for (let i = 0; i < token.length; i++)
+                reauthArray[i + 1] = token[i]
+
+                ws.send(reauthArray)
+            ">
+            <input value="Random location" type="button" onclick="
+                let spawnArray = new Uint8Array(7)
+                spawnArray[0] = clientPackets.Spawn
+                spawnArray[1] = Math.floor(Math.random() * map.boardsColumns)
+                spawnArray[2] = Math.floor(Math.random() * map.boardsRows)
+                spawnArray[3] = Math.floor(Math.random() * COLUMNS)
+                spawnArray[4] = Math.floor(Math.random() * ROWS)
+                spawnArray[5] = pieceType
+                spawnArray[6] = pieceColour
+                
+                ws.send(spawnArray)
+            ">
         </div>
     </div>
 
@@ -152,7 +172,6 @@
     let TILE_WIDTH = 64
     let ROWS = 8
     let COLUMNS = 8
-    let CANVASES = []
 
     const serverPackets = {
         // Info sent only to the player
@@ -216,6 +235,7 @@
     let boardRow = null
     let pieceColumn = null
     let pieceRow = null
+    let pieceDragging = false
 
 
     function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
@@ -299,22 +319,37 @@
                     break
                 }
                 case serverPackets.Spawn: {
-                    let mapRow, mapColumn, boardRow, boardColumn, type, colour
-                    [mapColumn ,mapRow, boardColumn, boardRow, type, colour] = data.slice(1)
-                    
-                    let piece = new Piece(type, colour)
-                    // Server will add an extra byte if piece is me
-                    if (data.length == 7) {
+                    // boardColumn, boardRow, pieceColumn, pieceRow, type, colour
+                    //      1          2           3           4       5     6
+                    let piece = new Piece(data.getUint8(5), data.getUint8(6))
+
+                    // If the piece coming is was from us
+                    if (data.getUint8(7) == 255) {
                         piece.me = true
-                        // My type and colour have already been set before spawn.
-                        boardColumn = mapColumn
-                        boardRow = mapRow
-                        pieceColumn = boardColumn
-                        pieceRow = boardRow
+                        boardColumn = data.getUint8(1)
+                        boardRow = data.getUint8(2)
+                        pieceColumn = data.getUint8(3)
+                        pieceRow = data.getUint8(4)
+
+                        setZoom(1)
+                        setPosition(boardColumn, boardRow, pieceColumn, pieceRow)
+                        window.setTimeout(() => {
+                            inputPermitted = true
+                        }, 100)
+
+                        spawnMenu.animate([
+                            { opactiy: '0' },
+                            { top: '-10%' },
+                        ], {
+                            duration: 200,
+                            iterations: 1
+                        })
+
+                        window.setTimeout(() => spawnMenu.style.display = "none", 200)
                     }
 
-                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] ??= piece
-                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
+                    map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] ??= piece
+                    drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`))
                     break
                 }
                 case serverPackets.RejectSpawn: {
@@ -374,10 +409,12 @@
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
             canvas.addEventListener("mousedown", onCanvasMouseDown)
+            canvas.addEventListener("mousemove", onCanvasMouseDrag)
+            canvas.addEventListener("mouseup", onCanvasMouseUp)
         })
     }
 
-    function fillTile(canvas, tileColumn, tileRow, special = false) {
+    function getOffsetCanvas(canvas, tileColumn, tileRow) {
         // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
         while (tileColumn < 0) {
@@ -385,7 +422,7 @@
                 `[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`)
             if (canvas == null) return
 
-                tileColumn = COLUMNS - Math.abs(tileColumn)
+            tileColumn = COLUMNS - Math.abs(tileColumn)
         }
         while (tileRow < 0) {
             canvas = board.querySelector(
@@ -408,6 +445,16 @@
 
             tileRow -= ROWS
         }
+
+        return [canvas, tileColumn, tileRow]
+    }
+
+    function fillTile(canvas, tileColumn, tileRow, special = false) {
+        let offset = getOffsetCanvas(canvas, tileColumn, tileRow)
+        if (offset == null)
+            return
+        
+        [canvas, tileColumn, tileRow] = offset
 
         // We skip if our shifting resulted in a canvas not even on the board
         const ctx = canvas.getContext("2d", { alpha: false })
@@ -504,6 +551,7 @@
         setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
 
         spawnMenu.style.display = "flex"
+        tokenSpawnButton.style.display = localStorage.token ? "none" : "block"
 
         function canvasMouseMove(event) {
             let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
@@ -529,45 +577,16 @@
 
             drawCheckeredBackground(event.target)
 
-            setZoom(1)
-            setPosition(+event.target.getAttribute("column"), +event.target.getAttribute("row"), tileOverX, tileOverY)
-            window.setTimeout(() => {
-                inputPermitted = true
-            }, 100)
-
-            spawnMenu.animate([
-                { opactiy: '0' },
-                { top: '-10%' },
-            ], {
-                duration: 200,
-                iterations: 1
-            })
-
-            window.setTimeout(() => spawnMenu.style.display = "none", 200)
-
-            if (localStorage.token) {
-                let reauthArray = new Uint8Array(37)
-                let token = encoder.encode(localStorage.token)
-
-                reauthArray[0] = clientPackets.Spawn
-
-                for (let i = 0; i < token.length; i++)
-                    reauthArray[i + 1] = token[i]
-
-                ws.send(reauthArray)
-            }
-            else {
-                let spawnArray = new Uint8Array(7)
-                spawnArray[0] = clientPackets.Spawn
-                spawnArray[1] = +event.target.getAttribute("column")
-                spawnArray[2] = +event.target.getAttribute("row")
-                spawnArray[3] = tileOverX
-                spawnArray[4] = tileOverY
-                spawnArray[5] = pieceType
-                spawnArray[6] = pieceColour
-                
-                ws.send(spawnArray)
-            }
+            let spawnArray = new Uint8Array(7)
+            spawnArray[0] = clientPackets.Spawn
+            spawnArray[1] = +event.target.getAttribute("column")
+            spawnArray[2] = +event.target.getAttribute("row")
+            spawnArray[3] = tileOverX
+            spawnArray[4] = tileOverY
+            spawnArray[5] = pieceType
+            spawnArray[6] = pieceColour
+            
+            ws.send(spawnArray)
         }
 
         board.querySelectorAll("canvas").forEach(canvas => {           
@@ -575,9 +594,6 @@
             canvas.addEventListener("mouseleave", canvasMouseLeave)
             canvas.addEventListener("mouseup", canvasMouseUp)
         })
-
-        // We wait for the server to confirm our spawn before we hide this menu and display
-        // our piece.
     }
 
     function drawPieces(canvas) {
@@ -585,22 +601,25 @@
         const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]
         
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
-        for (let x = 0; x < virtualBoard.pieceColumns; x++) {
-            for (let y = 0; y < virtualBoard.pieceRows; y++) {
-                let piece = virtualBoard[x, y]
+        for (let x = 0; x < COLUMNS; x++) {
+            for (let y = 0; y < ROWS; y++) {
+                let piece = virtualBoard.pieces[x][y]
                 if (piece == null)
                     continue
-                
+
                 let path = new Image()
                 path.src = "Assets/" + Object.keys(pieceTypes)[piece.type].toLowerCase()
-                    + piece.colour == pieceColours.White ? "white" : "" + ".svg"
+                    + "_" + (piece.colour == pieceColours.White ? "white" : "") + ".svg"
                 
-                path.onload = () => {
+                path.onload = () =>
                     ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT)
-                }
             }
         }
         ctx.filter = ""
+    }
+
+    function drawPieceAbsolute() {
+
     }
 
     function drawCheckeredBackground(canvas) {
@@ -664,6 +683,7 @@
     function onDragBody(event) {
         if (!dragging || !inputPermitted) return
         if (event.target != document.body && !board.contains(event.target)) return
+        document.body.style.cursor = "default"
         clearInterval(positionEase)
 
         // Constrain position
@@ -681,12 +701,68 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        drawValidMoves(event.target, tileClickedX, tileClickedY, pieceTypes.Bishop)
-
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
         boardIndicator.textContent = 
             `${+event.target.getAttribute("column") + 1}, ${+event.target.getAttribute("row") + 1}`
+
+        // If we are selecting on a piece, we are not dragging the board, block all propogation
+        let piece = map.boards[+event.target.getAttribute("column")][event.target.getAttribute("row")]
+            .pieces[tileClickedX][tileClickedY]
+        if (piece == null)
+            return
+        event.stopPropagation()
+        
+        if (piece.me) {
+            document.body.style.cursor = "grab"
+            pieceDragging = true
+        }
+        //
+    }
+
+    function onCanvasMouseDrag(event) {
+        if (!pieceDragging || !inputPermitted) return
+        let canvas = event.target
+        let tileDragX = (event.offsetX / TILE_WIDTH) - 0.5
+        let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5
+
+        let offset = getOffsetCanvas(canvas, tileDragX, tileDragY)
+        if (offset == null)
+            return
+        [canvas, tileDragX, tileDragY] = offset
+
+        const ctx = canvas.getContext("2d", { alpha: false })
+        const path = new Image()
+        path.src = "Assets/" + Object.keys(pieceTypes)[pieceType].toLowerCase()
+            + "_" + (pieceColour == pieceColours.White ? "white" : "") + ".svg"
+
+        path.onload = () => {
+            drawCheckeredBackground(canvas)
+            drawPieces(canvas)
+
+            ctx.fillStyle = "#8bff6185"
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+            ctx.fillStyle = ""
+            ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT)
+        }
+    }
+
+    function onCanvasMouseUp(event) {
+        pieceDragging = false
+
+        // If we have clicked on pice with no movement, show possible moves
+        let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
+        let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
+
+        let piece = map.boards[+event.target.getAttribute("column")][event.target.getAttribute("row")]
+            .pieces[tileClickedX][tileClickedY]
+
+        if (piece == null)
+            return
+
+        event.stopPropagation()
+
+        drawValidMoves(event.target, tileClickedX, tileClickedY, piece.type)
     }
 
     connect(localStorage.address || "wss://server.poemanthology.org:8083")
