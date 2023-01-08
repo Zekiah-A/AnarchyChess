@@ -135,7 +135,7 @@ public sealed class ServerInstance
                     app.SendAsync(args.Client, tokenBuffer);
                 
                     // Send to all connected clients
-                    var sendBuffer = new byte[6];
+                    var sendBuffer = new byte[7];
                     sendBuffer[0] = (byte) ServerPackets.Spawn;
                     SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
                 
@@ -287,14 +287,14 @@ public sealed class ServerInstance
     }
     
     /// <summary>
-    /// Length = 7
+    /// Length = 6
     /// </summary>
     private byte[] SerialisePiecePacket(Piece piece)
     {
         var buffer = new byte[6];
         SerialisePositionPacket(piece.Token).CopyTo(buffer, 0);
-        buffer[5] = (byte) piece.Type;
-        buffer[6] = (byte) piece.Colour;
+        buffer[4] = (byte) piece.Type;
+        buffer[5] = (byte) piece.Colour;
         
         return buffer;
     }

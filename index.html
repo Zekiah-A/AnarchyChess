@@ -77,7 +77,8 @@
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
                 this.current = this.querySelector('[selected]')
-                if (current != null) current.removeAttribute('selected')
+                if (current != null)
+                    current.removeAttribute('selected')
                 event.target.setAttribute('selected', true)
                 pieceType = pieceTypes[event.target.textContent]
             ">
@@ -93,7 +94,8 @@
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
                 this.current = this.querySelector('[selected]')
-                if (current != null) current.removeAttribute('selected')
+                if (current != null)
+                    current.removeAttribute('selected')
                 event.target.setAttribute('selected', true)
                 pieceColour = pieceColours[event.target.textContent]
             ">
