@@ -204,15 +204,19 @@
     const decoder = new TextDecoder()
 </script>
 <script>
-
     let ws = null
     let map = null
     let dragging = false
     let inputPermitted = true
     let zoom = 0.4
+    let positionEase = null
     let pieceType = pieceTypes.Pawn
     let pieceColour = pieceColours.White
-    let positionEase = null
+    let boardColumn = null
+    let boardRow = null
+    let pieceColumn = null
+    let pieceRow = null
+
 
     function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
         this.boards = []
@@ -264,12 +268,10 @@
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
                     let pieceArray = data.buffer.slice(5)
-                    for (let i = 0; i < pieceArray.length; i += 7) {
-                        let mapRow, mapColumn, boardRow, boardColumn, type, colour 
-                        [mapRow, mapColumn, boardRow, boardColumn, type, colour] = pieceArray.slice(i, i + 7)
-                        
-                        // Add piece to board at right place, piece type is at index 4, colour is at index 5 
-                        map.boards[mapRow][mapColumn].pieces[boardRow][boardColumn] = new Piece(type, colour)
+                    for (let i = 0; i < pieceArray.length; i += 6) {
+                        let mapColumn, mapRow, boardColumn, boardRow, type, colour 
+                        [mapColumn, mapRow, boardColumn, boardRow, type, colour] = pieceArray.slice(i, i + 6)
+                        map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = new Piece(type, colour)
                     }
 
                     createAllCanvases()
@@ -282,19 +284,41 @@
                 }
                 case serverPackets.RejectToken: {
                     localStorage.removeItem("token")
-                    window.location.reload(this)
+                    selectSpawnLocation()
                     break
                 }
                 case serverPackets.Move: {
+                    // TODO: Animate the move of the piece to new position
+                    let mapColumn, mapRow, boardColumn, boardRow, newMapColumn, newMapRow, bewBoardColumn, newBoardRow
 
+                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = null
+                    map.boards[newMapColumn][newMapRow].pieces[newBoardColumn][newBboardRow] = previous
+
+                    drawBoard(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
+                    drawBoard(document.querySelector(`[column="${newBoardColumn}"][row="${newBboardRow}"]`))
                     break
                 }
                 case serverPackets.Spawn: {
+                    let mapRow, mapColumn, boardRow, boardColumn, type, colour
+                    [mapColumn ,mapRow, boardColumn, boardRow, type, colour] = data.slice(1)
                     
+                    let piece = new Piece(type, colour)
+                    // Server will add an extra byte if piece is me
+                    if (data.length == 7) {
+                        piece.me = true
+                        // My type and colour have already been set before spawn.
+                        boardColumn = mapColumn
+                        boardRow = mapRow
+                        pieceColumn = boardColumn
+                        pieceRow = boardRow
+                    }
+
+                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] ??= piece
+                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
                     break
                 }
                 case serverPackets.RejectSpawn: {
-                    window.location.reload(this)
+                    selectSpawnLocation()
                     break
                 }
                 case serverPackets.Chat: {
@@ -479,6 +503,8 @@
         setZoom(0.4)
         setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
 
+        spawnMenu.style.display = "flex"
+
         function canvasMouseMove(event) {
             let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
             let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
@@ -509,7 +535,6 @@
                 inputPermitted = true
             }, 100)
 
-
             spawnMenu.animate([
                 { opactiy: '0' },
                 { top: '-10%' },
@@ -519,7 +544,6 @@
             })
 
             window.setTimeout(() => spawnMenu.style.display = "none", 200)
-
 
             if (localStorage.token) {
                 let reauthArray = new Uint8Array(37)
@@ -551,12 +575,15 @@
             canvas.addEventListener("mouseleave", canvasMouseLeave)
             canvas.addEventListener("mouseup", canvasMouseUp)
         })
+
+        // We wait for the server to confirm our spawn before we hide this menu and display
+        // our piece.
     }
 
     function drawPieces(canvas) {
         const ctx = canvas.getContext("2d", { alpha: false })
         const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]
-
+        
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < virtualBoard.pieceColumns; x++) {
             for (let y = 0; y < virtualBoard.pieceRows; y++) {

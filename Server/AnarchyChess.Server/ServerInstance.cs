@@ -49,7 +49,7 @@ public sealed class ServerInstance
             foreach (var clientPiece in Clients.Values.Select(pieceToken => GetPieceInstance(pieceToken)))
             {
                 SerialisePiecePacket(clientPiece).CopyTo(buffer, i);
-                i += 7;
+                i += 6;
             }
 
             app.SendAsync(args.Client, buffer);
