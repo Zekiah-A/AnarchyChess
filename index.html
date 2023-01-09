@@ -586,18 +586,20 @@
         setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
 
         spawnMenu.style.display = "flex"
-        tokenSpawnButton.style.display = localStorage.token ? "none" : "block"
+        tokenSpawnButton.style.display = localStorage.token ? "block" : "none"
 
         function canvasMouseMove(event) {
             let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
             let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
 
             drawCheckeredBackground(event.target)
+            drawPieces(event.target)
             fillTile(event.target, tileOverX, tileOverY)
         }
 
         function canvasMouseLeave(event) {
             drawCheckeredBackground(event.target)
+            drawPieces(event.target)
         }
 
         function canvasMouseUp(event) {
@@ -611,6 +613,7 @@
             })
 
             drawCheckeredBackground(event.target)
+            drawPieces(event.target)
 
             let spawnArray = new Uint8Array(7)
             spawnArray[0] = clientPackets.Spawn
@@ -765,7 +768,11 @@
     }
 
     function onCanvasMouseDrag(event) {
-        if (!pieceDragging || !inputPermitted) return
+        if (!pieceDragging || !inputPermitted) {
+            document.body.style.cursor = "default"
+            return
+        }
+        
         let canvas = event.target
         let tileDragX = (event.offsetX / TILE_WIDTH) - 0.5
         let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5
@@ -778,13 +785,13 @@
         const ctx = canvas.getContext("2d", { alpha: false })
         const path = new Image()
         path.src = "Assets/" + Object.keys(pieceTypes)[pieceType].toLowerCase()
-            + "_" + (pieceColour == pieceColours.White ? "white" : "black") + ".svg"
+            + "_" + Object.keys(pieceColours)[pieceColour].toLowerCase() + ".svg"
 
         path.onload = () => {
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
             // We can only drag ourself, so we show our own moves
-            drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
+            drawValidMoves(event.target, pieceColumn, pieceRow, pieceType)
 
             ctx.fillStyle = "#8bff6185"
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
@@ -796,7 +803,7 @@
     function onCanvasMouseUp(event) {
         pieceDragging = false
 
-        // If we have clicked on pice with no movement, show possible moves
+        // Show possible moves
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
@@ -807,7 +814,7 @@
             return
 
         // If we click on someone else, view what moves they could make
-        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type)
+        drawValidMoves(event.target, tileClickedX, tileClickedY, piece.type)
         event.stopPropagation()
     }
 
