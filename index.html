@@ -31,7 +31,12 @@
             else
                 chatPanel.setAttribute('closed', true)
         ">Chat</p>
-        <p>Settings</p>
+        <p onclick="
+            if (settingsPanel.getAttribute('closed'))
+                settingsPanel.removeAttribute('closed')
+            else
+                settingsPanel.setAttribute('closed', true)
+        ">Settings</p>
         <p>Help</p>
     </div>
 
@@ -47,6 +52,28 @@
                 this.value = ''
             }
         " />
+    </div>
+
+    <div id="settingsPanel" closed="true" class="info-panel">
+        <h4>Graphics options:</h4>
+        <div style="display: flex;flex-direction: column;row-gap: 3px;" onclick="
+            let childIndex = Array.prototype.indexOf.call(this.children, event.target)
+            if (childIndex == -1)
+                return
+                
+            let tileSize = [64, 128, 256][childIndex]
+            TILE_HEIGHT = tileSize
+            TILE_WIDTH = tileSize
+            board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + 'px'
+            board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + 'px'
+            localStorage.tileSize = tileSize
+            removeAllCanvases()
+            createAllCanvases()
+        ">
+            <input type="button" value="Low graphics">
+            <input type="button" value="Medium graphics">
+            <input type="button" value="High graphics">
+        </div>
     </div>
 
     <div id="turnPanel" class="info-panel">
@@ -82,12 +109,12 @@
                 event.target.setAttribute('selected', true)
                 pieceType = pieceTypes[event.target.textContent]
             ">
-            <div selected>Pawn<img src="Assets/pawn.svg"></div>
-            <div>Bishop<img src="Assets/bishop.svg"></div>
-            <div>Knight<img src="Assets/knight.svg"></div>
-            <div>Rook<img src="Assets/rook.svg"></div>
-            <div>Queen<img src="Assets/queen.svg"></div>
-            <div>King<img src="Assets/king.svg"></div>
+            <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
+            <div>Bishop<img src="Assets/bishop_black.svg"></div>
+            <div>Knight<img src="Assets/knight_black.svg"></div>
+            <div>Rook<img src="Assets/rook_black.svg"></div>
+            <div>Queen<img src="Assets/queen_black.svg"></div>
+            <div>King<img src="Assets/king_black.svg"></div>
         </div>
         <div style="flex-grow: 1;"></div>
         <div>Choose a colour</div>
@@ -168,8 +195,8 @@
 </body>
 <script>
     // Board width = tile width * columns
-    let TILE_HEIGHT = 64
-    let TILE_WIDTH = 64
+    let TILE_HEIGHT = localStorage.tileSize ?? 128
+    let TILE_WIDTH = localStorage.tileSize ?? 128
     let ROWS = 8
     let COLUMNS = 8
 
@@ -414,6 +441,12 @@
         })
     }
 
+    function removeAllCanvases() {
+        board.querySelectorAll("canvas").forEach(canvas => {
+            board.removeChild(canvas)
+        })
+    }
+
     function getOffsetCanvas(canvas, tileColumn, tileRow) {
         // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
@@ -547,7 +580,7 @@
 
     function selectSpawnLocation() {
         inputPermitted = false
-        setZoom(0.4)
+        setZoom(0.2)
         setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
 
         spawnMenu.style.display = "flex"
@@ -672,9 +705,10 @@
         }, 16)
     }
 
+    // Acceptable range is: 0.2 - 1
     function setZoom(zoomLevel) {
-        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2, oldZoom = zoom
-        zoom = Math.min(Math.max(zoomLevel, 0.4), 2)
+        let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
+        zoom = zoomLevel
 
         zoomIndicator.textContent = Math.round(zoom * 100) / 100
         board.style.transform = `scale(${zoom})`
@@ -694,7 +728,7 @@
 
     function onWheelBody(event) {
         if (event.target != document.body && !board.contains(event.target) || !inputPermitted) return
-        setZoom(event.deltaY < 0 ? zoom + 0.2 : zoom - 0.2)
+        setZoom(Math.min(Math.max(event.deltaY < 0 ? zoom + 0.1 : zoom - 0.1, 0.2), 1))
     }
 
     function onCanvasMouseDown(event) {
@@ -734,7 +768,7 @@
         const ctx = canvas.getContext("2d", { alpha: false })
         const path = new Image()
         path.src = "Assets/" + Object.keys(pieceTypes)[pieceType].toLowerCase()
-            + "_" + (pieceColour == pieceColours.White ? "white" : "") + ".svg"
+            + "_" + (pieceColour == pieceColours.White ? "white" : "black") + ".svg"
 
         path.onload = () => {
             drawCheckeredBackground(canvas)

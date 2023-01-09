@@ -250,7 +250,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     visibility: hidden;
 }
 
-#chatPanel {
+#chatPanel, #settingsPanel {
     top: 68px;
     right: 0px;
     background: var(--ui-info-transparent);
@@ -260,7 +260,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     transition: .2s right, .2s opacity;
 }
 
-#chatPanel[closed] {
+#chatPanel[closed], #settingsPanel[closed] {
     right: -340px;
     opacity: 0;
 }
