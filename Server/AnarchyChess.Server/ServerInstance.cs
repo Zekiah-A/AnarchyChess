@@ -10,7 +10,7 @@ namespace AnarchyChess.Server;
 public sealed class ServerInstance
 {
     public Map VirtualMap { get; }
-    public Dictionary<ClientMetadata, string> Clients { get; set; } = new();
+    public DualDictionary<ClientMetadata, string> Clients { get; set; } = new();
     public Dictionary<ClientMetadata, DateTime> IdlePieces = new();
     public Timer IdleDeletionTick; 
     public Action<string>? Logger;
@@ -76,11 +76,8 @@ public sealed class ServerInstance
                     if (data.Length == 37)
                     {
                         var authenticatingToken = Encoding.UTF8.GetString(data[8..]);
-                        var existingClient = Clients
-                            .Where(clientPair => clientPair.Value.Equals(authenticatingToken))
-                            .Select(clientPair => clientPair.Key).FirstOrDefault();
-
-                        if (existingClient is null)
+                        
+                        if (Clients.TryGetKey(authenticatingToken, out var existingClient))
                         {
                             Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid authentication token.");
                             app.SendAsync(args.Client, new [] { (byte) ServerPackets.RejectToken });
