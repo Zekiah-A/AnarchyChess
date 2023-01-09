@@ -64,8 +64,8 @@
             let tileSize = [64, 128, 256][childIndex]
             TILE_HEIGHT = tileSize
             TILE_WIDTH = tileSize
-            board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + 'px'
-            board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + 'px'
+            board.style.width = (COLUMNS * TILE_WIDTH * map.boardsColumns) + 'px'
+            board.style.height = (ROWS * TILE_HEIGHT * map.boardsRows) + 'px'
             localStorage.tileSize = tileSize
             removeAllCanvases()
             createAllCanvases()
