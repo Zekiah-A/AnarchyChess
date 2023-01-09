@@ -24,6 +24,7 @@
         <p>Anarchy Chess</p>
     </div>
 
+    <!--TODO: Use toggleAttribute instead-->
     <div class="hud game-actions">
         <p onclick="
             if (chatPanel.getAttribute('closed'))
@@ -494,6 +495,7 @@
 
         ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85"
         ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+        ctx.fillStyle = "none"
     }
 
     function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
@@ -642,13 +644,13 @@
 
                 let path = new Image()
                 path.src = "Assets/" + Object.keys(pieceTypes)[piece.type].toLowerCase()
-                    + "_" + (piece.colour == pieceColours.White ? "white" : "") + ".svg"
+                    + "_" + (piece.colour == pieceColours.White ? "white" : "black") + ".svg"
                 
                 path.onload = () =>
                     ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT)
             }
         }
-        ctx.filter = ""
+        ctx.filter = "none"
     }
 
     function drawPieceAbsolute() {
@@ -668,16 +670,25 @@
 
                 let x = (column + shift) * TILE_WIDTH
                 let y = row * TILE_HEIGHT
-                let gradientBlack = ctx.createLinearGradient(x, y, x + TILE_WIDTH, y + TILE_HEIGHT)
+                
+                if (TILE_HEIGHT > 64 && TILE_WIDTH > 64) {
+                    let gradientBlack = ctx.createLinearGradient(x, y, x + TILE_WIDTH, y + TILE_HEIGHT)
 
-                gradientBlack.addColorStop(0, "#3C3C3C")
-                gradientBlack.addColorStop(1, "black")
-                ctx.fillStyle = gradientBlack
+                    gradientBlack.addColorStop(0, "#3C3C3C")
+                    gradientBlack.addColorStop(1, "black")
+                    ctx.fillStyle = gradientBlack
+                }
+                else {
+                    ctx.fillStyle = "black"
+                }
+
                 ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT)
             }
 
             shift = !shift
         }
+
+        ctx.fillStyle = "none"
     }
 
     function easeOutCubic(progress) {
@@ -705,7 +716,7 @@
         }, 16)
     }
 
-    // Acceptable range is: 0.2 - 1
+    // Acceptable range is: 0.2 - 1 at 128px tile size, 0.4 - 2 at 64px tile size, etc...
     function setZoom(zoomLevel) {
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
         zoom = zoomLevel
@@ -751,7 +762,6 @@
             document.body.style.cursor = "grab"
             pieceDragging = true
         }
-        //
     }
 
     function onCanvasMouseDrag(event) {
@@ -773,10 +783,12 @@
         path.onload = () => {
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
+            // We can only drag ourself, so we show our own moves
+            drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
             ctx.fillStyle = "#8bff6185"
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
-            ctx.fillStyle = ""
+            ctx.fillStyle = "none"
             ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT)
         }
     }
@@ -794,9 +806,9 @@
         if (piece == null)
             return
 
+        // If we click on someone else, view what moves they could make
+        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type)
         event.stopPropagation()
-
-        drawValidMoves(event.target, tileClickedX, tileClickedY, piece.type)
     }
 
     connect(localStorage.address || "wss://server.poemanthology.org:8083")
