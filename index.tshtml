@@ -206,8 +206,8 @@
     //TEST: For testing ^
 
     // Board width = tile width * columns
-    let TILE_HEIGHT : number = localStorage.tileSize ?? 128
-    let TILE_WIDTH : number = localStorage.tileSize ?? 128
+    let TILE_HEIGHT : number = localStorage.tileSize || 128
+    let TILE_WIDTH : number = localStorage.tileSize || 128
     let ROWS = 8
     let COLUMNS = 8
 
@@ -259,8 +259,8 @@
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
-/*</script>
-<script>*/
+</script>
+<script>
     let ws : WebSocket | null = null
     //@ts-ignore
     let map : Map | null = null
@@ -316,7 +316,7 @@
             this.pieces = new Array<Array<Piece | null>>
 
             for (let x = 0; x < pieceColumns; x++) {
-                this.pieces[x] = []
+                this.pieces[x] = new Array<Piece>
             }
         }
     }
