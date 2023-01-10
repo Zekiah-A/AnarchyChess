@@ -195,108 +195,137 @@
     </div>
 </body>
 <script>
+    // TEST: For testing before tscompile is complete
+    let board = document.getElementById("board")!
+    let tileIndicator = document.getElementById("tileIndicator")!
+    let boardIndicator = document.getElementById("boardIndicator")!
+    let spawnMenu = document.getElementById("spawnMenu")!
+    let chatMessages = document.getElementById("chatMessages")!
+    let zoomIndicator = document.getElementById("zoomIndicator")!
+    let tokenSpawnButton = document.getElementById("tokenSpawnButton")!
+    //TEST: For testing ^
+
     // Board width = tile width * columns
-    let TILE_HEIGHT = localStorage.tileSize ?? 128
-    let TILE_WIDTH = localStorage.tileSize ?? 128
+    let TILE_HEIGHT : number = localStorage.tileSize ?? 128
+    let TILE_WIDTH : number = localStorage.tileSize ?? 128
     let ROWS = 8
     let COLUMNS = 8
 
-    const serverPackets = {
+    enum serverPackets {
         // Info sent only to the player
-        Canvases: 0,
-        Token: 1,
+        Canvases,
+        Token,
 
         // Relayed information from other clients
-        Move: 2,
-        Spawn: 3,
-        Chat: 4,
-        PieceKilled: 5,
-        TurnChanged: 6,
+        Move,
+        Spawn,
+        Chat,
+        PieceKilled,
+        TurnChanged,
 
         // Actions and responses
-        RejectMove: 7,
-        RejectSpawn: 8,
-        RejectChat: 9,
-        RejectToken: 10,
-        FriendRequest: 11,
-        FriendAdded: 12,
-        FriendRemoved: 13,
-        FriendsOnline: 14
+        RejectMove,
+        RejectSpawn,
+        RejectChat,
+        RejectToken,
+        FriendRequest,
+        FriendAdded,
+        FriendRemoved,
+        FriendsOnline
     }
 
-    const clientPackets = {
-        Spawn: 0,
-        Move: 1,
-        Chat: 2,
-        RequestFriend: 3,
-        AcceptFriend: 4
+    enum clientPackets {
+        Spawn,
+        Move,
+        Chat,
+        RequestFriend,
+        AcceptFriend
     }
 
-    const pieceTypes = {
-        Bishop: 0,
-        King: 1,
-        Knight: 2,
-        Pawn: 3,
-        Queen: 4,
-        Rook: 5
+    enum pieceTypes {
+        Bishop,
+        King,
+        Knight,
+        Pawn,
+        Queen,
+        Rook
     }
 
-    const pieceColours = {
-        White: 0,
-        Black: 1
+    enum pieceColours {
+        White,
+        Black
     }
 
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
-</script>
-<script>
-    let ws = null
-    let map = null
+/*</script>
+<script>*/
+    let ws : WebSocket | null = null
+    //@ts-ignore
+    let map : Map | null = null
+    let positionEase : number | null = null
     let dragging = false
     let inputPermitted = true
     let zoom = 0.4
-    let positionEase = null
     let pieceType = pieceTypes.Pawn
     let pieceColour = pieceColours.White
-    let boardColumn = null
-    let boardRow = null
-    let pieceColumn = null
-    let pieceRow = null
+    let boardColumn = 0
+    let boardRow = 0
+    let pieceColumn = 0
+    let pieceRow = 0
     let pieceDragging = false
 
+    //@ts-ignore
+    interface Map {
+        boards: Array<Array<Board>>;
+        boardsColumns: number;
+        boardsRows: number;
+    }
 
-    function Map(boardsRows, boardsColumns, pieceRows, pieceColumns) { 
-        this.boards = []
-        this.boardsColumns = boardsColumns
-        this.boardsRows = boardsRows
+    interface Board {
+        pieces: Array<Array<Piece | null>>;
+        pieceColumns: number;
+        pieceRows: number;
+    }
 
-        // Fill board array
-        for (let x = 0; x < boardsColumns; x++) {
-            this.boards[x] = []
+    interface Piece {
+        type: pieceTypes;
+        colour: pieceColours;
+        me: boolean;
+    }
+    
+    //@ts-ignore
+    class Map implements Map { 
+        constructor(public boardsColumns : number, public boardsRows : number, pieceColumns : number, pieceRows : number) {
+            this.boards = new Array<Array<Board>>
 
-            for (let y = 0; y < boardsRows; y++) {
-                this.boards[x][y] = new Board(pieceRows, pieceColumns)
+            // Fill board array
+            for (let x = 0; x < boardsColumns; x++) {
+                this.boards[x] = []
+
+                for (let y = 0; y < boardsRows; y++) {
+                    this.boards[x][y] = new Board(pieceRows, pieceColumns)
+                }
             }
         }
     }
 
-    function Board(pieceRows, pieceColumns) {
-        this.pieces = []
-        this.pieceColumns = pieceColumns
-        this.pieceRows = pieceRows
+    class Board implements Board {
+        constructor (public pieceColumns : number, public pieceRows : number) {
+            this.pieces = new Array<Array<Piece | null>>
 
-        for (let x = 0; x < pieceColumns; x++) {
-            this.pieces[x] = []
+            for (let x = 0; x < pieceColumns; x++) {
+                this.pieces[x] = []
+            }
         }
     }
 
-    function Piece(type, colour) {
-        this.type = type
-        this.colour = colour
+    class Piece implements Piece {
+        constructor(public type: pieceTypes, public colour : pieceColours){}
     }
 
-    function connect(address) {
+    function connect(address: string) {
         ws = new WebSocket(address)
 
         ws.onmessage = async ({data}) => {
@@ -313,6 +342,7 @@
                     board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px"
                     board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px"
                     
+                    //@ts-ignore
                     map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns)
 
                     let pieceArray = data.buffer.slice(5)
@@ -337,13 +367,14 @@
                 }
                 case serverPackets.Move: {
                     // TODO: Animate the move of the piece to new position
-                    let mapColumn, mapRow, boardColumn, boardRow, newMapColumn, newMapRow, bewBoardColumn, newBoardRow
+                    let mapColumn = 0, mapRow = 0, boardColumn = 0, boardRow = 0, newMapColumn = 0, newMapRow = 0, newBoardColumn = 0, newBoardRow = 0
+                    let previous: Piece = map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow]
 
                     map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = null
-                    map.boards[newMapColumn][newMapRow].pieces[newBoardColumn][newBboardRow] = previous
+                    map.boards[newMapColumn][newMapRow].pieces[newBoardColumn][newBoardRow] = previous
 
-                    drawBoard(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`))
-                    drawBoard(document.querySelector(`[column="${newBoardColumn}"][row="${newBboardRow}"]`))
+                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
+                    drawPieces(document.querySelector(`[column="${newBoardColumn}"][row="${newBoardRow}"]`)!)
                     break
                 }
                 case serverPackets.Spawn: {
@@ -377,7 +408,7 @@
                     }
 
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] ??= piece
-                    drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`))
+                    drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`)!)
                     break
                 }
                 case serverPackets.RejectSpawn: {
@@ -392,8 +423,9 @@
 
                     // Limit chat messages from becoming too long and causing issues
                     chatMessages.scrollTo(0, chatMessages.scrollHeight)
-                    if (chatMessages.childElementCount > 100)
-                        chatMessages.removeChild(chatMessages.firstElementChild)
+                    if (chatMessages.childElementCount > 100) {
+                        chatMessages.removeChild(chatMessages.firstElementChild!)
+                    }
                     break
                 }
                 case serverPackets.FriendRequest:
@@ -412,10 +444,10 @@
         }
     }
 
-    function sendChatMessage(message) {
+    function sendChatMessage(message: string) {
         let encoded = encoder.encode("0" + message)
         encoded[0] = clientPackets.Chat
-        ws.send(encoded)
+        ws?.send(encoded)
     }
 
     function createAllCanvases() {
@@ -426,8 +458,8 @@
                 el.height = TILE_HEIGHT * ROWS
                 el.style.left = (el.width * mapX) + "px"
                 el.style.top = (el.width * mapY) + "px"
-                el.setAttribute("column", mapX)
-                el.setAttribute("row", mapY)
+                el.setAttribute("column", String(mapX))
+                el.setAttribute("row", String(mapY))
 
                 board.appendChild(el)
             }
@@ -448,33 +480,33 @@
         })
     }
 
-    function getOffsetCanvas(canvas, tileColumn, tileRow) {
+    function getOffsetCanvas(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number) {
         // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
         while (tileColumn < 0) {
             canvas = board.querySelector(
-                `[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`)
+                `[column="${+canvas.getAttribute("column")! - 1}"][row="${+canvas.getAttribute("row")!}"]`)!
             if (canvas == null) return
 
             tileColumn = COLUMNS - Math.abs(tileColumn)
         }
         while (tileRow < 0) {
             canvas = board.querySelector(
-                `[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") - 1}"]`)
+                `[column="${+canvas.getAttribute("column")!}"][row="${+canvas.getAttribute("row")! - 1}"]`)!
             if (canvas == null) return
 
             tileRow = ROWS - Math.abs(tileRow)
         }
         while (tileColumn > COLUMNS - 1) {
             canvas = board.querySelector(
-                `[column="${+canvas.getAttribute("column") + 1}"][row="${canvas.getAttribute("row")}"]`)
+                `[column="${+canvas.getAttribute("column")! + 1}"][row="${canvas.getAttribute("row")!}"]`)!
             if (canvas == null) return
 
             tileColumn -= COLUMNS
         }
         while (tileRow > ROWS - 1) {
             canvas = board.querySelector(
-                `[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") + 1}"]`)
+                `[column="${+canvas.getAttribute("column")!}"][row="${+canvas.getAttribute("row")! + 1}"]`)!
             if (canvas == null) return
 
             tileRow -= ROWS
@@ -483,26 +515,24 @@
         return [canvas, tileColumn, tileRow]
     }
 
-    function fillTile(canvas, tileColumn, tileRow, special = false) {
+    function fillTile(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number, special = false) {
         let offset = getOffsetCanvas(canvas, tileColumn, tileRow)
         if (offset == null)
             return
         
-        [canvas, tileColumn, tileRow] = offset
+        [canvas, tileColumn, tileRow] = offset as [HTMLCanvasElement, number, number]
 
         // We skip if our shifting resulted in a canvas not even on the board
-        const ctx = canvas.getContext("2d", { alpha: false })
+        const ctx = canvas.getContext("2d", { alpha: false })!
 
         ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85"
         ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
         ctx.fillStyle = "none"
     }
 
-    function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
-        const ctx = canvas.getContext("2d", { alpha: false })
-        const column = +event.target.getAttribute("column")
-        const row = +event.target.getAttribute("row")
-        const pieces = map.boards[column][row].pieces
+    function drawValidMoves(canvas: HTMLCanvasElement, pieceColumn: number, pieceRow: number, pieceType: number) {
+        const ctx = canvas.getContext("2d", { alpha: false })!
+        const pieces = map.boards[+canvas.getAttribute("column")!][+canvas.getAttribute("row")!].pieces
 
         // TODO: Show moves that would put you in danger (or in king's case, check)
         switch(pieceType) {
@@ -588,21 +618,23 @@
         spawnMenu.style.display = "flex"
         tokenSpawnButton.style.display = localStorage.token ? "block" : "none"
 
-        function canvasMouseMove(event) {
+        function canvasMouseMove(event: MouseEvent) {
+            let canvas = event.target as HTMLCanvasElement
             let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
             let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-            drawCheckeredBackground(event.target)
-            drawPieces(event.target)
-            fillTile(event.target, tileOverX, tileOverY)
+            drawCheckeredBackground(canvas)
+            drawPieces(canvas)
+            fillTile(canvas, tileOverX, tileOverY)
         }
 
-        function canvasMouseLeave(event) {
-            drawCheckeredBackground(event.target)
-            drawPieces(event.target)
+        function canvasMouseLeave(event: MouseEvent) {
+            drawCheckeredBackground(event.target as HTMLCanvasElement)
+            drawPieces(event.target as HTMLCanvasElement)
         }
 
-        function canvasMouseUp(event) {
+        function canvasMouseUp(event: MouseEvent) {
+            let canvas = event.target as HTMLCanvasElement
             let tileOverX = Math.floor(event.offsetX / TILE_WIDTH)
             let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT)
 
@@ -612,19 +644,19 @@
                 canvas.removeEventListener("mouseup", canvasMouseUp)
             })
 
-            drawCheckeredBackground(event.target)
-            drawPieces(event.target)
+            drawCheckeredBackground(canvas)
+            drawPieces(canvas)
 
             let spawnArray = new Uint8Array(7)
             spawnArray[0] = clientPackets.Spawn
-            spawnArray[1] = +event.target.getAttribute("column")
-            spawnArray[2] = +event.target.getAttribute("row")
+            spawnArray[1] = +canvas.getAttribute("column")!
+            spawnArray[2] = +canvas.getAttribute("row")!
             spawnArray[3] = tileOverX
             spawnArray[4] = tileOverY
             spawnArray[5] = pieceType
             spawnArray[6] = pieceColour
             
-            ws.send(spawnArray)
+            ws?.send(spawnArray)
         }
 
         board.querySelectorAll("canvas").forEach(canvas => {           
@@ -634,9 +666,9 @@
         })
     }
 
-    function drawPieces(canvas) {
-        const ctx = canvas.getContext("2d", { alpha: false })
-        const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]
+    function drawPieces(canvas: HTMLCanvasElement) {
+        const ctx = canvas.getContext("2d", { alpha: false })!
+        const virtualBoard = map.boards[+canvas.getAttribute("column")!][+canvas.getAttribute("row")!]
         
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < COLUMNS; x++) {
@@ -660,8 +692,8 @@
 
     }
 
-    function drawCheckeredBackground(canvas) {
-        const ctx = canvas.getContext("2d", { alpha: false })
+    function drawCheckeredBackground(canvas: HTMLCanvasElement) {
+        const ctx = canvas.getContext("2d", { alpha: false })!
 
         ctx.fillStyle = "white"
         ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -671,7 +703,7 @@
             for (let column = 0; column < COLUMNS; column++) {
                 if (column % 2 != 0) continue
 
-                let x = (column + shift) * TILE_WIDTH
+                let x = (column + Number(shift)) * TILE_WIDTH
                 let y = row * TILE_HEIGHT
                 
                 if (TILE_HEIGHT > 64 && TILE_WIDTH > 64) {
@@ -694,12 +726,12 @@
         ctx.fillStyle = "none"
     }
 
-    function easeOutCubic(progress) {
+    function easeOutCubic(progress: number) {
         return 1 - Math.pow(1 - progress, 3)
     }
 
     // We place the column, row in the screen centre
-    function setPosition(boardColumn, boardRow, tileColumn, tileRow) {
+    function setPosition(boardColumn: number, boardRow: number, tileColumn: number, tileRow: number) {
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
         let finalLeft = (centreX - ((boardColumn * TILE_WIDTH * COLUMNS) + (tileColumn * TILE_WIDTH)) * zoom)
         let finalTop = (centreY - ((boardRow * TILE_HEIGHT * ROWS) + (tileRow * TILE_HEIGHT)) * zoom)
@@ -715,24 +747,25 @@
             board.style.top = (ease * (finalTop - initialTop) + initialTop) + "px"
 
             current++
-            if (current >= repeats) clearInterval(positionEase)
+            if (current >= repeats) clearInterval(positionEase!)
         }, 16)
     }
 
     // Acceptable range is: 0.2 - 1 at 128px tile size, 0.4 - 2 at 64px tile size, etc...
-    function setZoom(zoomLevel) {
+    function setZoom(zoomLevel: number) {
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
         zoom = zoomLevel
 
-        zoomIndicator.textContent = Math.round(zoom * 100) / 100
+        zoomIndicator.textContent = String(Math.round(zoom * 100) / 100)
         board.style.transform = `scale(${zoom})`
     }
 
-    function onDragBody(event) {
+    function onDragBody(event: MouseEvent) {
+        let canvas = event.target as HTMLCanvasElement
         if (!dragging || !inputPermitted) return
-        if (event.target != document.body && !board.contains(event.target)) return
+        if (event.target != document.body && !board.contains(canvas)) return
         document.body.style.cursor = "default"
-        clearInterval(positionEase)
+        clearInterval(positionEase!)
 
         // Constrain position
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
@@ -740,22 +773,24 @@
         board.style.top =  Math.max(centreY - board.offsetHeight * zoom, Math.min(centreY, board.offsetTop + event.movementY))  + "px"
     }
 
-    function onWheelBody(event) {
-        if (event.target != document.body && !board.contains(event.target) || !inputPermitted) return
+    function onWheelBody(event: WheelEvent) {
+        let canvas = event.target as HTMLCanvasElement
+        if (event.target != document.body && !board.contains(canvas) || !inputPermitted) return
         setZoom(Math.min(Math.max(event.deltaY < 0 ? zoom + 0.1 : zoom - 0.1, 0.2), 1))
     }
 
-    function onCanvasMouseDown(event) {
+    function onCanvasMouseDown(event: MouseEvent) {
+        let canvas = event.target as HTMLCanvasElement
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
         tileIndicator.textContent = 
             (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
         boardIndicator.textContent = 
-            `${+event.target.getAttribute("column") + 1}, ${+event.target.getAttribute("row") + 1}`
+            `${+canvas.getAttribute("column")! + 1}, ${+canvas.getAttribute("row")! + 1}`
 
         // If we are selecting on a piece, we are not dragging the board, block all propogation
-        let piece = map.boards[+event.target.getAttribute("column")][event.target.getAttribute("row")]
+        let piece = map.boards[+canvas.getAttribute("column")!][canvas.getAttribute("row")!]
             .pieces[tileClickedX][tileClickedY]
         if (piece == null)
             return
@@ -767,22 +802,22 @@
         }
     }
 
-    function onCanvasMouseDrag(event) {
+    function onCanvasMouseDrag(event: MouseEvent) {
         if (!pieceDragging || !inputPermitted) {
             document.body.style.cursor = "default"
             return
         }
         
-        let canvas = event.target
+        let canvas = event.target as HTMLCanvasElement
         let tileDragX = (event.offsetX / TILE_WIDTH) - 0.5
         let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5
 
         let offset = getOffsetCanvas(canvas, tileDragX, tileDragY)
         if (offset == null)
             return
-        [canvas, tileDragX, tileDragY] = offset
+        [canvas, tileDragX, tileDragY] = offset as [HTMLCanvasElement, number, number]
 
-        const ctx = canvas.getContext("2d", { alpha: false })
+        const ctx = canvas.getContext("2d", { alpha: false })!
         const path = new Image()
         path.src = "Assets/" + Object.keys(pieceTypes)[pieceType].toLowerCase()
             + "_" + Object.keys(pieceColours)[pieceColour].toLowerCase() + ".svg"
@@ -791,7 +826,7 @@
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
             // We can only drag ourself, so we show our own moves
-            drawValidMoves(event.target, pieceColumn, pieceRow, pieceType)
+            drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
             ctx.fillStyle = "#8bff6185"
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
@@ -800,21 +835,22 @@
         }
     }
 
-    function onCanvasMouseUp(event) {
+    function onCanvasMouseUp(event : MouseEvent) {
         pieceDragging = false
 
         // Show possible moves
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
+        let canvas = event.target as HTMLCanvasElement
 
-        let piece = map.boards[+event.target.getAttribute("column")][event.target.getAttribute("row")]
+        let piece = map.boards[canvas.getAttribute("column")!][canvas.getAttribute("row")!]
             .pieces[tileClickedX][tileClickedY]
 
         if (piece == null)
             return
 
         // If we click on someone else, view what moves they could make
-        drawValidMoves(event.target, tileClickedX, tileClickedY, piece.type)
+        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type)
         event.stopPropagation()
     }
 
