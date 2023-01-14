@@ -4,7 +4,7 @@
 {
     let start = Date.now()
 
-    let boards = [], boardsRows = 10, boardsColumns = 10
+    let boards: string[] = [], boardsRows = 10, boardsColumns = 10
 
     for (let x = 0; x < boardsRows; x++) {
         boards[x] = []
@@ -49,6 +49,7 @@
     let finalLeft = 87
     const repeats = 100
     let current = 0
+    let board = document.getElementById("board")
 
     let animate = setInterval(() => {
         // We pretend offsetleft is always starting from zero, by shifting final back by it as well
@@ -69,4 +70,8 @@
             console.log("EASE OUT LERP TEST - " + (Math.floor(xNow) == finalLeft ? "SUCCESS" : "FAIL"))
         }
     }, 100)
+
+    function easeOutCubic(progress) {
+        return 1 - Math.pow(1 - progress, 3)
+    }
 }
