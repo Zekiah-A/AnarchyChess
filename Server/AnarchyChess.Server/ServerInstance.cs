@@ -244,7 +244,7 @@ public sealed class ServerInstance
         var killBuffer = new byte[6];
         killBuffer[0] = (byte) ServerPackets.PieceKilled;
         SerialisePositionPacket(token).CopyTo(killBuffer, 1);
-
+        
         foreach (var client in app.Clients)
         {
             app.SendAsync(client, killBuffer.ToArray());

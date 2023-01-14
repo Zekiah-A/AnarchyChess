@@ -26,18 +26,8 @@
 
     <!--TODO: Use toggleAttribute instead-->
     <div class="hud game-actions">
-        <p onclick="
-            if (chatPanel.getAttribute('closed'))
-                chatPanel.removeAttribute('closed')
-            else
-                chatPanel.setAttribute('closed', true)
-        ">Chat</p>
-        <p onclick="
-            if (settingsPanel.getAttribute('closed'))
-                settingsPanel.removeAttribute('closed')
-            else
-                settingsPanel.setAttribute('closed', true)
-        ">Settings</p>
+        <p onclick="chatPanel.toggleAttribute('closed')">Chat</p>
+        <p onclick="settingsPanel.toggleAttribute('closed')">Settings</p>
         <p>Help</p>
     </div>
 
@@ -49,8 +39,9 @@
         </div>
         <input type="text" maxlength="250" onkeydown="
             if (event.key == 'Enter') {
-                sendChatMessage(this.value)
-                this.value = ''
+                let input = this as HTMLInputElement
+                sendChatMessage(input.value)
+                input.value = ''
             }
         " />
     </div>
@@ -101,14 +92,12 @@
         <h1>Anarchy Chess</h1>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
         <p>Choose a piece</p>
-        <div class="scroll-picker" id="sc"
+        <div class="scroll-picker"
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
-                this.current = this.querySelector('[selected]')
-                if (current != null)
-                    current.removeAttribute('selected')
-                event.target.setAttribute('selected', true)
-                pieceType = pieceTypes[event.target.textContent]
+                this.querySelector('[selected]')?.removeAttribute('selected');
+                (event.target as HTMLElement).setAttribute('selected', String(true))
+                pieceType = pieceTypes[(event.target as HTMLElement).textContent]
             ">
             <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
             <div>Bishop<img src="Assets/bishop_black.svg"></div>
@@ -121,12 +110,10 @@
         <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
-                this.current = this.querySelector('[selected]')
-                if (current != null)
-                    current.removeAttribute('selected')
-                event.target.setAttribute('selected', true)
-                pieceColour = pieceColours[event.target.textContent]
-            ">
+            this.querySelector('[selected]')?.removeAttribute('selected');
+            (event.target as HTMLElement).setAttribute('selected', String(true))
+            pieceColour = pieceColours[(event.target as HTMLElement).textContent]
+        ">
             <div class="black-white" style="color: white; background-color: black;">Black</div>
             <div selected class="black-white" style="color: black; background-color: white;">White</div>
         </div>
@@ -194,17 +181,7 @@
         ">
     </div>
 </body>
-<script>
-    // TEST: For testing before tscompile is complete
-    let board = document.getElementById("board")!
-    let tileIndicator = document.getElementById("tileIndicator")!
-    let boardIndicator = document.getElementById("boardIndicator")!
-    let spawnMenu = document.getElementById("spawnMenu")!
-    let chatMessages = document.getElementById("chatMessages")!
-    let zoomIndicator = document.getElementById("zoomIndicator")!
-    let tokenSpawnButton = document.getElementById("tokenSpawnButton")!
-    //TEST: For testing ^
-
+<script type="">
     // Board width = tile width * columns
     let TILE_HEIGHT : number = localStorage.tileSize || 128
     let TILE_WIDTH : number = localStorage.tileSize || 128
@@ -260,7 +237,7 @@
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
 </script>
-<script>
+<script type=""> // HACK: type="" inhibits vscode JS debugger from running
     let ws : WebSocket | null = null
     //@ts-ignore
     let map : Map | null = null
@@ -268,8 +245,8 @@
     let dragging = false
     let inputPermitted = true
     let zoom = 0.4
-    let pieceType = pieceTypes.Pawn
-    let pieceColour = pieceColours.White
+    let pieceType: number = pieceTypes.Pawn
+    let pieceColour: number = pieceColours.White
     let boardColumn = 0
     let boardRow = 0
     let pieceColumn = 0
@@ -295,7 +272,6 @@
         me: boolean;
     }
     
-    //@ts-ignore
     class Map implements Map { 
         constructor(public boardsColumns : number, public boardsRows : number, pieceColumns : number, pieceRows : number) {
             this.boards = new Array<Array<Board>>
@@ -678,7 +654,7 @@
                     continue
 
                 let path = new Image()
-                path.src = "Assets/" + Object.keys(pieceTypes)[piece.type].toLowerCase()
+                path.src = "Assets/" + pieceTypes[piece.type]
                     + "_" + (piece.colour == pieceColours.White ? "white" : "black") + ".svg"
                 
                 path.onload = () =>
@@ -819,7 +795,7 @@
 
         const ctx = canvas.getContext("2d", { alpha: false })!
         const path = new Image()
-        path.src = "Assets/" + Object.keys(pieceTypes)[pieceType].toLowerCase()
+        path.src = "Assets/" + pieceTypes[pieceType]
             + "_" + Object.keys(pieceColours)[pieceColour].toLowerCase() + ".svg"
 
         path.onload = () => {
