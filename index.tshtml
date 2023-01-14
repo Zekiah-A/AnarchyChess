@@ -654,8 +654,8 @@
                     continue
 
                 let path = new Image()
-                path.src = "Assets/" + pieceTypes[piece.type]
-                    + "_" + (piece.colour == pieceColours.White ? "white" : "black") + ".svg"
+                path.src = "Assets/" + pieceTypes[piece.type].toLowerCase()
+                    + "_" + pieceColours[pieceColour].toLowerCase() + ".svg"
                 
                 path.onload = () =>
                     ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT)
@@ -795,8 +795,8 @@
 
         const ctx = canvas.getContext("2d", { alpha: false })!
         const path = new Image()
-        path.src = "Assets/" + pieceTypes[pieceType]
-            + "_" + Object.keys(pieceColours)[pieceColour].toLowerCase() + ".svg"
+        path.src = "Assets/" + pieceTypes[pieceType].toLowerCase()
+            + "_" + pieceColours[pieceColour].toLowerCase() + ".svg"
 
         path.onload = () => {
             drawCheckeredBackground(canvas)
@@ -804,8 +804,20 @@
             // We can only drag ourself, so we show our own moves
             drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
-            ctx.fillStyle = "#8bff6185"
-            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+            //TODO: Correct colour math
+            ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"
+            // Top 2 main
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, 16, 8)
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT, 16, 8)
+            // Top 2 little blocks
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8)
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8)
+            // Bottom 2 little blocks
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8)
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8)
+            // Bottom 2 main
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8)
+            ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8)
             ctx.fillStyle = "none"
             ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT)
         }
