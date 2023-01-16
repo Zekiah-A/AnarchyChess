@@ -251,8 +251,6 @@
     let boardRow = 0
     let pieceColumn = 0
     let pieceRow = 0
-    let deltaX = 0
-    let deltaY = 0
     let pieceDragging = false
 
     //@ts-ignore
@@ -778,8 +776,6 @@
         if (piece.me) {
             document.body.style.cursor = "grab"
             pieceDragging = true
-            deltaX = 0
-            deltaY = 0
         }
     }
 
@@ -826,9 +822,6 @@
             ctx.fillStyle = "none"
             ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT)
         }
-
-        deltaX += event.movementX / TILE_WIDTH
-        deltaY += event.movementY / TILE_HEIGHT
     }
 
     function onCanvasMouseUp(event : MouseEvent) {
@@ -837,6 +830,12 @@
         // Show possible moves
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
+        let boardClickedX = Number(canvas.getAttribute("column"))
+        let boardClickedY = Number(canvas.getAttribute("row"))
+
+        let deltaX = (tileClickedX + (boardClickedX * COLUMNS)) - (pieceColumn + (boardColumn * COLUMNS))
+        let deltaY = (tileClickedY + (boardClickedY * ROWS)) - (pieceRow + (boardRow * ROWS))
+
         let canvas = event.target as HTMLCanvasElement
 
         let piece = map.boards[canvas.getAttribute("column")!][canvas.getAttribute("row")!]
@@ -847,13 +846,13 @@
             drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type)
             event.stopPropagation()
         }
-        else if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
+        else if (deltaX != 0 || deltaY != 0) {
             let mePiece = map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow]
             map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = null
             
             // Drag drop
-            boardColumn = Number(canvas.getAttribute("column"))
-            boardRow =  Number(canvas.getAttribute("row"))
+            boardColumn = boardClickedX
+            boardRow =  boardClickedY
             pieceColumn = tileClickedX
             pieceRow = tileClickedY
 
