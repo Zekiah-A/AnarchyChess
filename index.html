@@ -257,6 +257,8 @@ let boardColumn = 0;
 let boardRow = 0;
 let pieceColumn = 0;
 let pieceRow = 0;
+let deltaX = 0;
+let deltaY = 0;
 let pieceDragging = false;
 class Map {
     constructor(boardsColumns, boardsRows, pieceColumns, pieceRows) {
@@ -692,6 +694,8 @@ function onCanvasMouseDown(event) {
     if (piece.me) {
         document.body.style.cursor = "grab";
         pieceDragging = true;
+        deltaX = 0;
+        deltaY = 0;
     }
 }
 function onCanvasMouseDrag(event) {
@@ -732,6 +736,8 @@ function onCanvasMouseDrag(event) {
         ctx.fillStyle = "none";
         ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT);
     };
+    deltaX += event.movementX / TILE_WIDTH;
+    deltaY += event.movementY / TILE_HEIGHT;
 }
 function onCanvasMouseUp(event) {
     pieceDragging = false;
@@ -741,11 +747,23 @@ function onCanvasMouseUp(event) {
     let canvas = event.target;
     let piece = map.boards[canvas.getAttribute("column")][canvas.getAttribute("row")]
         .pieces[tileClickedX][tileClickedY];
-    if (piece == null)
-        return;
-    // If we click on someone else, view what moves they could make
-    drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type);
-    event.stopPropagation();
+    if (piece != null) {
+        // If we click on any piece, view what moves they could make
+        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type);
+        event.stopPropagation();
+    }
+    else if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
+        let mePiece = map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow];
+        map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = null;
+        // Drag drop
+        boardColumn = Number(canvas.getAttribute("column"));
+        boardRow = Number(canvas.getAttribute("row"));
+        pieceColumn = tileClickedX;
+        pieceRow = tileClickedY;
+        map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = mePiece;
+        drawCheckeredBackground(canvas);
+        drawPieces(canvas);
+    }
 }
 connect(localStorage.address || "wss://server.poemanthology.org:8083");
 </script>

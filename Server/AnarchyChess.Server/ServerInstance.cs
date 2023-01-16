@@ -106,7 +106,7 @@ public sealed class ServerInstance
                         (PieceType) data[5],
                         (PieceColour) data[6]
                     );
-                
+                    
                     var location = new BoardLocation(
                         data[1],
                         data[2],
