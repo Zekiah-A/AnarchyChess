@@ -38,21 +38,41 @@ public sealed class ServerInstance
         {
             // (byte) Packet code = data[0], (byte) boards columns = data[1], (byte) boards rows = data[2],
             // (byte) pieces columns = data[3], (byte) pieces rows = data[4], (byte..[]) pieces data[5..]
-            var buffer = new byte[Clients.Count * 5 + 5];
-            buffer[0] = (byte) ServerPackets.Canvases;
-            buffer[1] = (byte) VirtualMap.Boards.GetLength(0);
-            buffer[2] = (byte) VirtualMap.Boards.GetLength(1);
-            buffer[3] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(0);
-            buffer[4] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(1);
+            var canvasesBuffer = new byte[Clients.Count * 5 + 5];
+            canvasesBuffer[0] = (byte) ServerPackets.Canvases;
+            canvasesBuffer[1] = (byte) VirtualMap.Boards.GetLength(0);
+            canvasesBuffer[2] = (byte) VirtualMap.Boards.GetLength(1);
+            canvasesBuffer[3] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(0);
+            canvasesBuffer[4] = (byte) VirtualMap.Boards[0, 0].Pieces.GetLength(1);
             
+            // (byte) Packet code = data[0], (int) piece count white = data[1], (int) piece count black = data [5]
+            var colourBalanceBuffer = (Span<byte>) stackalloc byte[9];
+            colourBalanceBuffer[0] = (byte) ServerPackets.ColourBalance;
+
+            var piecesWhite = 0;
+            var piecesBlack = 0;
             var i = 5;
             foreach (var clientPiece in Clients.Values.Select(pieceToken => GetPieceInstance(pieceToken)))
             {
-                SerialisePiecePacket(clientPiece).CopyTo(buffer, i);
+                SerialisePiecePacket(clientPiece).CopyTo(canvasesBuffer, i);
+
+                if (clientPiece.Colour == PieceColour.White)
+                {
+                    piecesWhite++;
+                }
+                else
+                {
+                    piecesBlack++;
+                }
+                
                 i += 6;
             }
 
-            app.SendAsync(args.Client, buffer);
+            BinaryPrimitives.WriteUInt32BigEndian(colourBalanceBuffer[1..], (uint) piecesWhite);
+            BinaryPrimitives.WriteUInt32BigEndian(colourBalanceBuffer[5..], (uint) piecesBlack);
+
+            app.SendAsync(args.Client, canvasesBuffer);
+            app.SendAsync(args.Client, colourBalanceBuffer.ToArray());
         };
 
         app.MessageReceived += (sender, args) =>
@@ -260,10 +280,10 @@ public sealed class ServerInstance
     private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
     {
         // Turn change packet is data[1..4] = (int) current turn, data[5..9] = position packet of currently playing piece.
-        var turnBuffer = new byte[9];
+        var turnBuffer = (Span<byte>) stackalloc byte[9];
         turnBuffer[0] = (byte) ServerPackets.TurnChanged;
-        BinaryPrimitives.WriteUInt32BigEndian(turnBuffer.AsSpan()[1..], (uint) args.Turn);
-        SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer, 5);
+        BinaryPrimitives.WriteUInt32BigEndian(turnBuffer[1..], (uint) args.Turn);
+        SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer.ToArray(), 5);
         
         foreach (var client in app.Clients)
         {

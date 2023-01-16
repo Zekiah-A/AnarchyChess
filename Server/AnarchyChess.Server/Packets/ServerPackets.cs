@@ -5,6 +5,7 @@ public enum ServerPackets
     // Info sent only to the player
     Canvases,
     Token,
+    ColourBalance,
 
     // Relayed information from other clients
     Move,
@@ -12,7 +13,7 @@ public enum ServerPackets
     Chat,
     PieceKilled,
     TurnChanged,
-
+    
     // Actions and responses
     RejectMove,
     RejectSpawn,

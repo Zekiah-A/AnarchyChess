@@ -143,6 +143,21 @@ input[type="button"]:hover {
     text-align: center;
     line-height: 60px;
     box-shadow: 0px 0px 2px black;
+    position: relative;
+    z-index: 0;
+}
+
+.black-white > div {
+    position: absolute;
+    height: calc(100% + 4px);
+    top: -2px;
+    left: -2px;
+    background-color: var(--ui-hilight-transparent);
+    border-radius: 8px;
+    z-index: -1;
+    width: 0%;
+    transition: 0.2s width;
+    pointer-events: none;
 }
 
 .scroll-picker {
@@ -321,6 +336,9 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
             #eee,
             #999
         );
+    
+    transition-property: width;
+    transition-timing-function: linear;
 }
 
 #warningMenu {
@@ -371,4 +389,18 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     z-index: 1;
     border: 4px solid var(--ui-hilight-transparent);
     border-radius: 4px;
+}
+
+#meTurnPopup {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    text-align: center;
+    font-size: 10vw;
+    width: 100%;
+    display: none;
+    transform: translateY(-50%);
+    text-shadow: 2px 2px #fff;
+    background: var(--ui-hilight-transparent);
+    pointer-events: none;
 }

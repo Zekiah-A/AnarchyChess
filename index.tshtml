@@ -93,10 +93,17 @@
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
         <p>Choose a piece</p>
         <div class="scroll-picker"
+            ontouchmove="
+                this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX)
+                scroll({ left:  + this.scrollLeft, top: 0, behavior: 'smooth' })
+            "
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
-                this.querySelector('[selected]')?.removeAttribute('selected');
-                (event.target as HTMLElement).setAttribute('selected', String(true))
+                let target = (event.target as HTMLElement)
+                if (target == this)
+                    return
+                this.querySelector('[selected]')?.removeAttribute('selected')
+                target.setAttribute('selected', String(true))
                 pieceType = pieceTypes[(event.target as HTMLElement).textContent]
             ">
             <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
@@ -110,12 +117,21 @@
         <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
-            this.querySelector('[selected]')?.removeAttribute('selected');
-            (event.target as HTMLElement).setAttribute('selected', String(true))
-            pieceColour = pieceColours[(event.target as HTMLElement).textContent]
-        ">
-            <div class="black-white" style="color: white; background-color: black;">Black</div>
-            <div selected class="black-white" style="color: black; background-color: white;">White</div>
+            let target = (event.target as HTMLElement)
+            if (target == this)
+                return
+            this.querySelector('[selected]')?.removeAttribute('selected')
+            target.setAttribute('selected', String(true))
+            pieceColour = Array.prototype.indexOf.call(this.children, event.target) 
+            ">
+            <div class="black-white" style="color: white; background-color: black;">
+                Black
+                <div id="blackBalance"></div>
+            </div>
+            <div selected class="black-white" style="color: black; background-color: white;">
+                White
+                <div id="whiteBalance"></div>
+            </div>
         </div>
         <div style="flex-grow: 1;"></div>
         <input style="width: 40%;" value="Play" type="button" onclick="
@@ -180,6 +196,8 @@
             window.setTimeout(() => { warningMenu.remove() }, 600)
         ">
     </div>
+
+    <div id="meTurnPopup">It is now your turn!</div>
 </body>
 <script type="">
     // Board width = tile width * columns
@@ -187,11 +205,13 @@
     let TILE_WIDTH : number = localStorage.tileSize || 128
     let ROWS = 8
     let COLUMNS = 8
+    let TURN_TIME = 10000
 
     enum serverPackets {
         // Info sent only to the player
         Canvases,
         Token,
+        ColourBalance,
 
         // Relayed information from other clients
         Move,
@@ -242,6 +262,7 @@
     //@ts-ignore
     let map : Map | null = null
     let positionEase : number | null = null
+    let turnTimerInterval : number | null = null
     let dragging = false
     let inputPermitted = true
     let zoom = 0.4
@@ -251,6 +272,8 @@
     let boardRow = 0
     let pieceColumn = 0
     let pieceRow = 0
+    let deltaX = 0
+    let deltaY = 0
     let pieceDragging = false
 
     //@ts-ignore
@@ -339,6 +362,14 @@
                 case serverPackets.RejectToken: {
                     localStorage.removeItem("token")
                     selectSpawnLocation()
+                    break
+                }
+                case serverPackets.ColourBalance: {
+                    let whiteRatio = data.getUint32(1) / (data.getUint32(1) + data.getUint32(5))
+                    let blackRatio = 1 - whiteRatio
+                    
+                    whiteBalance.style.width = String(whiteRatio * 100) + "%"
+                    blackBalance.style.width = String(blackRatio * 100) + "%"
                     break
                 }
                 case serverPackets.Move: {
@@ -664,8 +695,46 @@
         ctx.filter = "none"
     }
 
-    function drawPieceAbsolute() {
+    
 
+    function startTurnTimer(column: number, row: number, turn: number) {    
+        if (turnTimerInterval != null)
+            clearInterval(turnTimerInterval)
+
+        // If the turn is us
+        if (column == pieceColumn && row == pieceRow) {
+            meTurnPopup.style.display = "block"
+
+            meTurnPopup.animate([
+                { transform: 'scale(0)' },
+                { opacity: '0' },
+                { transform: 'scale(1)' },
+                { opacity: '1' },
+            ], {
+                duration: 400,
+                iterations: 1
+            })
+
+            setTimeout(() => {
+                meTurnPopup.style.display = "none"
+            }, 2000)
+        }
+        
+        const updateInterval = 100
+        const iMax = TURN_TIME / updateInterval
+        let i = 0
+
+        turnProgress.style.transitionDuration =  (TURN_TIME / iMax) + "ms"
+
+        turnTimerInterval = setInterval(() => {
+            if (i >= iMax && turnTimerInterval != null)
+                clearInterval(turnTimerInterval)
+
+            turnLabel.innerText = `Current turn: ${String(turn)}            (${String(Math.floor((i * updateInterval) / 1000))}s)`
+            turnProgress.style.width = `calc(${i / iMax * 100}% - 16px)`
+            turnProgress.style.backgroundPositionX = (iMax - i) * 0.5 + "px"
+            i++
+        }, updateInterval)
     }
 
     function drawCheckeredBackground(canvas: HTMLCanvasElement) {
@@ -768,6 +837,7 @@
         // If we are selecting on a piece, we are not dragging the board, block all propogation
         let piece = map.boards[+canvas.getAttribute("column")!][canvas.getAttribute("row")!]
             .pieces[tileClickedX][tileClickedY]
+        
         if (piece == null)
             return
 
@@ -778,9 +848,6 @@
             pieceDragging = true
         }
     }
-
-    let deltaX = 0
-    let deltaY = 0
 
     function onCanvasMouseDrag(event: MouseEvent) {
         if (!pieceDragging || !inputPermitted) {

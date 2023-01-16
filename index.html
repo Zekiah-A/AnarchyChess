@@ -102,12 +102,18 @@
         <h1>Anarchy Chess</h1>
         <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
         <p>Choose a piece</p>
-        <div class="scroll-picker" onwheel="
+        <div class="scroll-picker" ontouchmove="
+    this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX);
+    scroll({ left: +this.scrollLeft, top: 0, behavior: 'smooth' });
+" onwheel="
     scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' });
 " onclick="
     var _a;
+    let target = event.target;
+    if (target == this)
+        return;
     (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected');
-    event.target.setAttribute('selected', String(true));
+    target.setAttribute('selected', String(true));
     pieceType = pieceTypes[event.target.textContent];
 ">
             <div selected="">Pawn<img src="Assets/pawn_black.svg"></div>
@@ -122,12 +128,21 @@
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
     var _a;
+    let target = event.target;
+    if (target == this)
+        return;
     (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected');
-    event.target.setAttribute('selected', String(true));
-    pieceColour = pieceColours[event.target.textContent];
+    target.setAttribute('selected', String(true));
+    pieceColour = Array.prototype.indexOf.call(this.children, event.target);
 ">
-            <div class="black-white" style="color: white; background-color: black;">Black</div>
-            <div selected="" class="black-white" style="color: black; background-color: white;">White</div>
+            <div class="black-white" style="color: white; background-color: black;">
+                Black
+                <div id="blackBalance"></div>
+            </div>
+            <div selected="" class="black-white" style="color: black; background-color: white;">
+                White
+                <div id="whiteBalance"></div>
+            </div>
         </div>
         <div style="flex-grow: 1;"></div>
         <input style="width: 40%;" value="Play" type="button" onclick="
@@ -187,6 +202,8 @@
     window.setTimeout(() => { warningMenu.remove(); }, 600);
 ">
     </div>
+
+    <div id="meTurnPopup">It is now your turn!</div>
 </body>
 <script type="">
 
@@ -195,26 +212,28 @@ let TILE_HEIGHT = localStorage.tileSize || 128;
 let TILE_WIDTH = localStorage.tileSize || 128;
 let ROWS = 8;
 let COLUMNS = 8;
+let TURN_TIME = 10000;
 var serverPackets;
 (function (serverPackets) {
     // Info sent only to the player
     serverPackets[serverPackets["Canvases"] = 0] = "Canvases";
     serverPackets[serverPackets["Token"] = 1] = "Token";
+    serverPackets[serverPackets["ColourBalance"] = 2] = "ColourBalance";
     // Relayed information from other clients
-    serverPackets[serverPackets["Move"] = 2] = "Move";
-    serverPackets[serverPackets["Spawn"] = 3] = "Spawn";
-    serverPackets[serverPackets["Chat"] = 4] = "Chat";
-    serverPackets[serverPackets["PieceKilled"] = 5] = "PieceKilled";
-    serverPackets[serverPackets["TurnChanged"] = 6] = "TurnChanged";
+    serverPackets[serverPackets["Move"] = 3] = "Move";
+    serverPackets[serverPackets["Spawn"] = 4] = "Spawn";
+    serverPackets[serverPackets["Chat"] = 5] = "Chat";
+    serverPackets[serverPackets["PieceKilled"] = 6] = "PieceKilled";
+    serverPackets[serverPackets["TurnChanged"] = 7] = "TurnChanged";
     // Actions and responses
-    serverPackets[serverPackets["RejectMove"] = 7] = "RejectMove";
-    serverPackets[serverPackets["RejectSpawn"] = 8] = "RejectSpawn";
-    serverPackets[serverPackets["RejectChat"] = 9] = "RejectChat";
-    serverPackets[serverPackets["RejectToken"] = 10] = "RejectToken";
-    serverPackets[serverPackets["FriendRequest"] = 11] = "FriendRequest";
-    serverPackets[serverPackets["FriendAdded"] = 12] = "FriendAdded";
-    serverPackets[serverPackets["FriendRemoved"] = 13] = "FriendRemoved";
-    serverPackets[serverPackets["FriendsOnline"] = 14] = "FriendsOnline";
+    serverPackets[serverPackets["RejectMove"] = 8] = "RejectMove";
+    serverPackets[serverPackets["RejectSpawn"] = 9] = "RejectSpawn";
+    serverPackets[serverPackets["RejectChat"] = 10] = "RejectChat";
+    serverPackets[serverPackets["RejectToken"] = 11] = "RejectToken";
+    serverPackets[serverPackets["FriendRequest"] = 12] = "FriendRequest";
+    serverPackets[serverPackets["FriendAdded"] = 13] = "FriendAdded";
+    serverPackets[serverPackets["FriendRemoved"] = 14] = "FriendRemoved";
+    serverPackets[serverPackets["FriendsOnline"] = 15] = "FriendsOnline";
 })(serverPackets || (serverPackets = {}));
 var clientPackets;
 (function (clientPackets) {
@@ -248,6 +267,7 @@ let ws = null;
 //@ts-ignore
 let map = null;
 let positionEase = null;
+let turnTimerInterval = null;
 let dragging = false;
 let inputPermitted = true;
 let zoom = 0.4;
@@ -257,6 +277,8 @@ let boardColumn = 0;
 let boardRow = 0;
 let pieceColumn = 0;
 let pieceRow = 0;
+let deltaX = 0;
+let deltaY = 0;
 let pieceDragging = false;
 class Map {
     constructor(boardsColumns, boardsRows, pieceColumns, pieceRows) {
@@ -320,6 +342,13 @@ function connect(address) {
             case serverPackets.RejectToken: {
                 localStorage.removeItem("token");
                 selectSpawnLocation();
+                break;
+            }
+            case serverPackets.ColourBalance: {
+                let whiteRatio = data.getUint32(1) / (data.getUint32(1) + data.getUint32(5));
+                let blackRatio = 1 - whiteRatio;
+                whiteBalance.style.width = String(whiteRatio * 100) + "%";
+                blackBalance.style.width = String(blackRatio * 100) + "%";
                 break;
             }
             case serverPackets.Move: {
@@ -600,7 +629,37 @@ function drawPieces(canvas) {
     }
     ctx.filter = "none";
 }
-function drawPieceAbsolute() {
+function startTurnTimer(column, row, turn) {
+    if (turnTimerInterval != null)
+        clearInterval(turnTimerInterval);
+    // If the turn is us
+    if (column == pieceColumn && row == pieceRow) {
+        meTurnPopup.style.display = "block";
+        meTurnPopup.animate([
+            { transform: 'scale(0)' },
+            { opacity: '0' },
+            { transform: 'scale(1)' },
+            { opacity: '1' },
+        ], {
+            duration: 400,
+            iterations: 1
+        });
+        setTimeout(() => {
+            meTurnPopup.style.display = "none";
+        }, 2000);
+    }
+    const updateInterval = 100;
+    const iMax = TURN_TIME / updateInterval;
+    let i = 0;
+    turnProgress.style.transitionDuration = (TURN_TIME / iMax) + "ms";
+    turnTimerInterval = setInterval(() => {
+        if (i >= iMax && turnTimerInterval != null)
+            clearInterval(turnTimerInterval);
+        turnLabel.innerText = `Current turn: ${String(turn)}            (${String(Math.floor((i * updateInterval) / 1000))}s)`;
+        turnProgress.style.width = `calc(${i / iMax * 100}% - 16px)`;
+        turnProgress.style.backgroundPositionX = (iMax - i) * 0.5 + "px";
+        i++;
+    }, updateInterval);
 }
 function drawCheckeredBackground(canvas) {
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -694,8 +753,6 @@ function onCanvasMouseDown(event) {
         pieceDragging = true;
     }
 }
-let deltaX = 0;
-let deltaY = 0;
 function onCanvasMouseDrag(event) {
     if (!pieceDragging || !inputPermitted) {
         document.body.style.cursor = "default";
