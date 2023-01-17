@@ -149,9 +149,8 @@
                 let token = encoder.encode(localStorage.token)
 
                 reauthArray[0] = clientPackets.Spawn
-
                 for (let i = 0; i < token.length; i++)
-                reauthArray[i + 1] = token[i]
+                    reauthArray[i + 1] = token[i]
 
                 ws.send(reauthArray)
             ">
