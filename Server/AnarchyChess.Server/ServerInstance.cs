@@ -285,9 +285,12 @@ public sealed class ServerInstance
         BinaryPrimitives.WriteUInt32BigEndian(turnBuffer[1..], (uint) args.Turn);
         SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer.ToArray(), 5);
         
-        foreach (var client in app.Clients)
+        lock (app.Clients)
         {
-            app.SendAsync(client, turnBuffer.ToArray());   
+            foreach (var client in app.Clients)
+            {
+                app.SendAsync(client, turnBuffer.ToArray());
+            }
         }
     }
 

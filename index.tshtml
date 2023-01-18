@@ -248,8 +248,8 @@
     }
 
     enum pieceColours {
-        White,
-        Black
+        Black,
+        White
     }
 
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -583,12 +583,15 @@
             case pieceTypes.Pawn:
                 // TODO: Implement correct suggestions for pawn colour variations
                 // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
-                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
+                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null) {
                     fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
-                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
+                }
+                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null) {
                     fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
-                else
+                }
+                else {//TODO: Fix inlinescript minification breaking trailing elses
                     fillTile(canvas, pieceColumn, pieceRow - 1)
+                }
                 break
             case pieceTypes.Queen:
                 //TODO: Depends on bishop
@@ -872,7 +875,7 @@
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
             // We can only drag ourself, so we show our own moves
-            drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
+            // drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
             //TODO: Correct colour math
             ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"
