@@ -85,9 +85,10 @@ public sealed class Map
         Boards[location.BoardColumn, location.BoardRow].DeletePiece(token);
     }
 
-    // Will try to find a piece on the map, by looking through TokenLocation caches and recursion.
+    // Will try to find a piece on the map, by looking through TokenLocation caches and iteration.
     public BoardLocation LocatePieceInstance(string token)
     {
+        Console.WriteLine(Boards[0, 0].Pieces[0, 0].Token);
         if (TokenLocations.TryGetValue(token, out var location))
         {
             var pieceLocation = Boards[location.BoardColumn, location.BoardRow].LocatePieceInstance(token);

@@ -187,7 +187,7 @@ public sealed class Board
                 }
             }
         }
-
+        
         return new PieceLocation(-1, -1);
     }
 
