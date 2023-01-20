@@ -227,7 +227,8 @@
         FriendRequest,
         FriendAdded,
         FriendRemoved,
-        FriendsOnline
+        FriendsOnline,
+        Me = 255 // Confirms to a client that an acton originated from them
     }
 
     enum clientPackets {
@@ -271,6 +272,7 @@
     let boardRow = 0
     let pieceColumn = 0
     let pieceRow = 0
+    let turn = 0
     let deltaX = 0
     let deltaY = 0
     let pieceDragging = false
@@ -367,20 +369,37 @@
                     let whiteRatio = data.getUint32(1) / (data.getUint32(1) + data.getUint32(5))
                     let blackRatio = 1 - whiteRatio
                     
-                    whiteBalance.style.width = String(whiteRatio * 100) + "%"
-                    blackBalance.style.width = String(blackRatio * 100) + "%"
+                    whiteBalance.style.width = "calc(" + String(whiteRatio * 100) + "% + 4px)"
+                    blackBalance.style.width = "calc(" + String(blackRatio * 100) + "% + 4px)"
                     break
                 }
                 case serverPackets.Move: {
                     // TODO: Animate the move of the piece to new position
-                    let mapColumn = 0, mapRow = 0, boardColumn = 0, boardRow = 0, newMapColumn = 0, newMapRow = 0, newBoardColumn = 0, newBoardRow = 0
-                    let previous: Piece = map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow]
+                    let previous: Piece = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)]
 
-                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = null
-                    map.boards[newMapColumn][newMapRow].pieces[newBoardColumn][newBoardRow] = previous
+                    map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
+                    map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous
 
+                    if (data.getUint8(9) == serverPackets.Me) {                        
+                        boardColumn = data.getUint8(5)
+                        boardRow =  data.getUint8(6)
+                        pieceColumn = data.getUint8(7)
+                        pieceRow = data.getUint8(8)
+
+                        setPosition(data.getUint8(5), data.getUint8(6), data.getUint8(7), data.getUint8(8))
+                    }
+
+                    drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
                     drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
+                    drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
                     drawPieces(document.querySelector(`[column="${newBoardColumn}"][row="${newBoardRow}"]`)!)
+                    break
+                }
+                case serverPackets.TurnChanged: {
+                    // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
+                    turn = data.getUint16(1)
+                    //TODO: Show an effect over the current piece using position data if it is them
+                    startTurnTimer(data.getUint16(7) == serverPackets.Me)
                     break
                 }
                 case serverPackets.Spawn: {
@@ -388,8 +407,8 @@
                     //      1          2           3           4       5     6
                     let piece = new Piece(data.getUint8(5), data.getUint8(6))
 
-                    // If the piece coming is was from us
-                    if (data.getUint8(7) == 255) {
+                    // If the piece coming in was from us
+                    if (data.getUint8(7) == serverPackets.Me) {
                         piece.me = true
                         boardColumn = data.getUint8(1)
                         boardRow = data.getUint8(2)
@@ -468,16 +487,13 @@
                 el.setAttribute("row", String(mapY))
 
                 board.appendChild(el)
+                drawCheckeredBackground(el)
+                drawPieces(el)
+                el.addEventListener("mousedown", onCanvasMouseDown)
+                el.addEventListener("mousemove", onCanvasMouseDrag)
+                el.addEventListener("mouseup", onCanvasMouseUp)
             }
         }
-
-        board.querySelectorAll("canvas").forEach(canvas => {
-            drawCheckeredBackground(canvas)
-            drawPieces(canvas)
-            canvas.addEventListener("mousedown", onCanvasMouseDown)
-            canvas.addEventListener("mousemove", onCanvasMouseDrag)
-            canvas.addEventListener("mouseup", onCanvasMouseUp)
-        })
     }
 
     function removeAllCanvases() {
@@ -530,10 +546,10 @@
 
         // We skip if our shifting resulted in a canvas not even on the board
         const ctx = canvas.getContext("2d", { alpha: false })!
-
+        ctx.save()
         ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85"
         ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
-        ctx.fillStyle = "none"
+        ctx.restore()
     }
 
     function drawValidMoves(canvas: HTMLCanvasElement, pieceColumn: number, pieceRow: number, pieceType: number) {
@@ -679,6 +695,8 @@
         const ctx = canvas.getContext("2d", { alpha: false })!
         const virtualBoard = map.boards[+canvas.getAttribute("column")!][+canvas.getAttribute("row")!]
         
+        ctx.save()
+
         ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"
         for (let x = 0; x < COLUMNS; x++) {
             for (let y = 0; y < ROWS; y++) {
@@ -694,17 +712,17 @@
                     ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT)
             }
         }
-        ctx.filter = "none"
+        ctx.restore()
     }
 
     
 
-    function startTurnTimer(column: number, row: number, turn: number) {    
+    function startTurnTimer(turn: number, me: bool) {    
         if (turnTimerInterval != null)
             clearInterval(turnTimerInterval)
 
         // If the turn is us
-        if (column == pieceColumn && row == pieceRow) {
+        if (me) {
             meTurnPopup.style.display = "block"
 
             meTurnPopup.animate([
@@ -741,7 +759,8 @@
 
     function drawCheckeredBackground(canvas: HTMLCanvasElement) {
         const ctx = canvas.getContext("2d", { alpha: false })!
-
+        
+        ctx.save()
         ctx.fillStyle = "white"
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         
@@ -769,8 +788,7 @@
 
             shift = !shift
         }
-
-        ctx.fillStyle = "none"
+        ctx.restore()
     }
 
     function easeOutCubic(progress: number) {
@@ -878,6 +896,7 @@
             // drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
             //TODO: Correct colour math
+            ctx.save()
             ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"
             // Top 2 main
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, 16, 8)
@@ -891,7 +910,8 @@
             // Bottom 2 main
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8)
             ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8)
-            ctx.fillStyle = "none"
+            ctx.restore()
+
             ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT)
         }
 
@@ -917,21 +937,19 @@
             event.stopPropagation()
         }
         else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
-            let mePiece = map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow]
             map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = null
-            
-            // Drag drop
-            boardColumn = Number(canvas.getAttribute("column"))
-            boardRow =  Number(canvas.getAttribute("row"))
-            pieceColumn = tileClickedX
-            pieceRow = tileClickedY
-
             deltaX = 0
             deltaY = 0
 
-            map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = mePiece
-            drawCheckeredBackground(canvas)
-            drawPieces(canvas)
+            // Move our piece to that location, and send it to the server,
+            // issuing the final move when the server confirms we have finished the move.
+            let moveArray = new Uint8Array(7)
+            moveArray[0] = clientPackets.Move
+            moveArray[1] = Number(canvas.getAttribute("column"))
+            moveArray[2] = Number(canvas.getAttribute("row"))
+            moveArray[3] = tileClickedX
+            moveArray[4] = tileClickedY
+            ws.send(moveArray)
         }
     }
 

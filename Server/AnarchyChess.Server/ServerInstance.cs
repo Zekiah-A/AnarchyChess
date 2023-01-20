@@ -154,7 +154,7 @@ public sealed class ServerInstance
                 sendBuffer[0] = (byte) ServerPackets.Spawn;
                 SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
 
-                sendBuffer[7] = 255;
+                sendBuffer[7] = (byte) ServerPackets.Me;
                 app.SendAsync(args.Client, sendBuffer);
                 sendBuffer[7] = 0;
 
@@ -271,17 +271,26 @@ public sealed class ServerInstance
 
     private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
     {
-        // Turn change packet is data[1..4] = (int) current turn, data[5..9] = position packet of currently playing piece.
-        var turnBuffer = (Span<byte>) stackalloc byte[9];
+        // Turn change packet is data[1..2] = (ushort) current turn, data[3..7] = position packet of currently playing piece.
+        var turnBuffer = (Span<byte>) stackalloc byte[8];
         turnBuffer[0] = (byte) ServerPackets.TurnChanged;
-        BinaryPrimitives.WriteUInt32BigEndian(turnBuffer[1..], (uint) args.Turn);
-        SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer.ToArray(), 5);
+        BinaryPrimitives.WriteUInt16BigEndian(turnBuffer[1..], (ushort) args.Turn);
+        SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer.ToArray(), 3);
         
         lock (app.Clients)
         {
             foreach (var client in app.Clients)
             {
-                app.SendAsync(client, turnBuffer.ToArray());
+                if (Clients.GetKey(args.CurrentPiece.Token) == client)
+                {
+                    turnBuffer[7] = (byte) ServerPackets.Me;
+                    app.SendAsync(client, turnBuffer.ToArray());
+                    turnBuffer[7] = 0;
+                }
+                else
+                {
+                    app.SendAsync(client, turnBuffer.ToArray());
+                }
             }
         }
     }

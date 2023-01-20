@@ -23,4 +23,5 @@ public enum ServerPackets
     FriendAdded,
     FriendRemoved,
     FriendsOnline,
+    Me = 255 // Confirms to a client that an acton originated from them
 }
