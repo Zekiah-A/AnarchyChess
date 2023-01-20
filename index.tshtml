@@ -34,8 +34,6 @@
     <div id="chatPanel" closed="true" class="info-panel">
         <div id="chatMessages">
             <span>>> Chat messages will appear here</span>
-            <span deathevent>💀 Pawn killed at (1, 1) A1</span>
-            <span spawnevent>✨ Pawn spawned at (1, 1) A1</span>
         </div>
         <input type="text" maxlength="250" onkeydown="
             if (event.key == 'Enter') {
@@ -435,6 +433,23 @@
                     startTurnTimer(data.getUint16(1))
                     break
                 }
+                case serverpackets.PieceKilled: {
+                    //TODO: Death animation?
+                    let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf()
+                    map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
+
+                    addChatMessage(
+                        `💀 ${previous.type} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
+                        "deathevent"
+                    )
+
+                    if (data.getUint8(5) == serverPackets.me) {
+                        deathMenu.removeAttribute("closed")
+                        inputPermitted = false
+                        setPosition()
+                    }
+                    break
+                }
                 case serverPackets.Spawn: {
                     // boardColumn, boardRow, pieceColumn, pieceRow, type, colour
                     //      1          2           3           4       5     6
@@ -465,6 +480,11 @@
                         window.setTimeout(() => spawnMenu.style.display = "none", 200)
                     }
 
+                    addChatMessage(
+                        `✨ ${piece.type} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
+                        "deathevent"
+                    )
+
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] ??= piece
                     drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`)!)
                     break
@@ -474,16 +494,7 @@
                     break
                 }
                 case serverPackets.Chat: {
-                    let el = document.createElement("span")
-                    el.textContent = ">> " + decoder.decode(data.buffer.slice(1))
-                    chatMessages.appendChild(el)
-                    chatMessages.appendChild(document.createElement("br"))
-
-                    // Limit chat messages from becoming too long and causing issues
-                    chatMessages.scrollTo(0, chatMessages.scrollHeight)
-                    if (chatMessages.childElementCount > 100) {
-                        chatMessages.removeChild(chatMessages.firstElementChild!)
-                    }
+                    addChatMessage(decoder.decode(data.buffer.slice(1)))
                     break
                 }
                 case serverPackets.FriendRequest:
@@ -499,6 +510,22 @@
         
         ws.onclose = (event) => {
             console.error(event)
+        }
+    }
+
+    function addChatMessage(message: string, event: string | null = null) {
+        let el = document.createElement("span")
+        el.textContent = event ? message : ">> " + message
+        if (event)
+            el.setAttribute(event, true)
+        
+        chatMessages.appendChild(el)
+        chatMessages.appendChild(document.createElement("br"))
+
+        // Limit chat messages from becoming too long and causing issues
+        chatMessages.scrollTo(0, chatMessages.scrollHeight)
+        if (chatMessages.childElementCount > 100) {
+            chatMessages.removeChild(chatMessages.firstElementChild!)
         }
     }
 
@@ -884,8 +911,8 @@
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
         tileIndicator.textContent = 
-            (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString() 
-        boardIndicator.textContent = 
+            
+        boardIndicator.textContent = toAlphabetCoordinate(tileClickedX, tileClickedY).join(", ")
             `${+canvas.getAttribute("column")! + 1}, ${+canvas.getAttribute("row")! + 1}`
 
         // If we are selecting on a piece, we are not dragging the board, block all propogation
@@ -901,6 +928,10 @@
             document.body.style.cursor = "grab"
             pieceDragging = true
         }
+    }
+
+    function toAlphabetCoordinate(x: number, y: number) {
+        return [(x < 26 ? ALPHABET[x] : x), String(y)]
     }
 
     function onCanvasMouseDrag(event: MouseEvent) {

@@ -259,6 +259,14 @@ public sealed class ServerInstance
         
         foreach (var client in app.Clients)
         {
+            if (client.Token.Equals(token))
+            {
+                killBuffer[5] = (byte) ServerPackets.Me;
+                app.SendAsync(client, killBuffer.ToArray());
+                killBuffer[5] = 0;
+                continue;
+            }
+
             app.SendAsync(client, killBuffer.ToArray());
         }
     }
