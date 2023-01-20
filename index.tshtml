@@ -395,8 +395,8 @@
 
                     const ctx = canvas.getContext("2d", { alpha: false })!
                     const path = new Image()
-                    path.src = "Assets/" + previous.type.toLowerCase()
-                        + "_" + previous.colour.toLowerCase() + ".svg"
+                    path.src = "Assets/" + pieceTypes[previous.type].toLowerCase()
+                        + "_" + pieceColours[previous.colour].toLowerCase() + ".svg"
 
                     path.onload = () => {
                         // Ease piece move from original spot to new
@@ -429,6 +429,7 @@
                     // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
                     myTurn = data.getUint8(7) == serverPackets.Me
                     let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`) as HTMLCanvasElement
+                    const ctx = canvas.getContext("2d", { alpha: false })!
 
                     // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
                     if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
@@ -441,7 +442,7 @@
                     }
                     break
                 }
-                case serverpackets.PieceKilled: {
+                case serverPackets.PieceKilled: {
                     //TODO: Death animation?
                     let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf()
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
@@ -451,10 +452,10 @@
                         "deathevent"
                     )
 
-                    if (data.getUint8(5) == serverPackets.me) {
+                    if (data.getUint8(5) == serverPackets.Me) {
                         deathMenu.removeAttribute("closed")
                         inputPermitted = false
-                        setPosition()
+                        setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0)
                     }
                     break
                 }
@@ -525,7 +526,7 @@
         let el = document.createElement("span")
         el.textContent = event ? message : ">> " + message
         if (event)
-            el.setAttribute(event, true)
+            el.setAttribute(event, String(true))
         
         chatMessages.appendChild(el)
         chatMessages.appendChild(document.createElement("br"))
@@ -642,7 +643,9 @@
                 // We create a square/border of allowed around, excluding central current pos
                 for (let x = column - 1; x <= column + 1; x++) {
                     for (let y = row - 1; y <= row + 1; y++) {
-                        if (x == column && y == row) continue
+                        if (x == column && y == row)
+                            continue
+                        
                         if (pieces[x] != null && pieces[x][y] != null) {
                             fillTile(canvas, x, y, true)
                             continue
@@ -676,10 +679,11 @@
                 else if (pieces[column - 1] != null && pieces[column - 1][row + 1] != null)
                     fillTile(canvas, column - 1, row + 1, true)
                 else
-                    fillTile(canvas, column, (colour == pieceColours.White ? row + 1 ? row - 1))
+                    fillTile(canvas, column, (colour == pieceColours.White ? row + 1 : row - 1))
                 break
             case pieceTypes.Queen:
                 //TODO: Depends on bishop
+                break
             case pieceTypes.Rook:
                 for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
                     if (x == column) continue
@@ -918,11 +922,12 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        tileIndicator.textContent = 
+        tileIndicator.textContent =
+            toAlphabetCoordinate(tileClickedX, tileClickedY).join(", ")
             
-        boardIndicator.textContent = toAlphabetCoordinate(tileClickedX, tileClickedY).join(", ")
+        boardIndicator.textContent =
             `${+canvas.getAttribute("column")! + 1}, ${+canvas.getAttribute("row")! + 1}`
-
+            
         // If we are selecting on a piece, we are not dragging the board, block all propogation
         let piece = map.boards[+canvas.getAttribute("column")!][canvas.getAttribute("row")!]
             .pieces[tileClickedX][tileClickedY]

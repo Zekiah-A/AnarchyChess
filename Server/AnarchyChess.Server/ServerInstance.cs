@@ -259,7 +259,7 @@ public sealed class ServerInstance
         
         foreach (var client in app.Clients)
         {
-            if (client.Token.Equals(token))
+            if (Clients.GetValue(client).Equals(token))
             {
                 killBuffer[5] = (byte) ServerPackets.Me;
                 app.SendAsync(client, killBuffer.ToArray());

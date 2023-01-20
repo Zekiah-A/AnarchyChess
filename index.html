@@ -45,8 +45,6 @@
     <div id="chatPanel" closed="true" class="info-panel">
         <div id="chatMessages">
             <span>>> Chat messages will appear here</span>
-            <span deathevent="">💀 Pawn killed at (1, 1) A1</span>
-            <span spawnevent="">✨ Pawn spawned at (1, 1) A1</span>
         </div>
         <input type="text" maxlength="250" onkeydown="
     if (event.key == 'Enter') {
@@ -114,7 +112,7 @@
         return;
     (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected');
     target.setAttribute('selected', String(true));
-    pieceType = pieceTypes[event.target.textContent];
+    pieceType = pieceTypes[target.textContent];
 ">
             <div selected="">Pawn<img src="Assets/pawn_black.svg"></div>
             <div>Bishop<img src="Assets/bishop_black.svg"></div>
@@ -354,29 +352,77 @@ function connect(address) {
                 break;
             }
             case serverPackets.Move: {
-                // TODO: Animate the move of the piece to new position
                 let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)];
+                let previousCanvas = document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`);
+                let canvas = document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`);
+                // We "remove" the piece from the board until we have animated it's dummy representation to the new position
                 map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null;
-                map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous;
                 if (data.getUint8(9) == serverPackets.Me) {
                     boardColumn = data.getUint8(5);
                     boardRow = data.getUint8(6);
                     pieceColumn = data.getUint8(7);
                     pieceRow = data.getUint8(8);
                     setPosition(data.getUint8(5), data.getUint8(6), data.getUint8(7), data.getUint8(8));
-                    drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`));
-                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`));
+                    drawCheckeredBackground(previousCanvas);
+                    drawPieces(previousCanvas);
+                    drawCheckeredBackground(canvas);
+                    drawPieces(canvas);
+                    break;
                 }
-                drawCheckeredBackground(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`));
-                drawPieces(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`));
+                const ctx = canvas.getContext("2d", { alpha: false });
+                const path = new Image();
+                path.src = "Assets/" + pieceTypes[previous.type].toLowerCase()
+                    + "_" + pieceColours[previous.colour].toLowerCase() + ".svg";
+                path.onload = () => {
+                    // Ease piece move from original spot to new
+                    let current = 0;
+                    const repeats = 50;
+                    let moveEase = setInterval(() => {
+                        let ease = easeOutCubic(current / repeats);
+                        let dispX = data.getUint8(3) + (data.getUint8(7) - data.getUint8(3)) * ease;
+                        let dispY = data.getUint8(4) + (data.getUint8(8) - data.getUint8(4)) * ease;
+                        // Ease on X, for example would be original X + ((newX - originalX) * ease) 
+                        ctx.drawImage(path, dispX * TILE_WIDTH, dispY * TILE_HEIGHT);
+                        drawCheckeredBackground(previousCanvas);
+                        drawPieces(previousCanvas);
+                        drawCheckeredBackground(canvas);
+                        drawPieces(canvas);
+                        current++;
+                        if (current >= repeats) {
+                            // We finally "finish" the move, and commit transferring the piece
+                            map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous;
+                        }
+                        clearInterval(moveEase);
+                    }, 16);
+                };
                 break;
             }
             case serverPackets.TurnChanged: {
                 // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
-                let myTurn = data.getUint8(7) == serverPackets.Me;
-                // TODO: Show an effect over the current piece using position data if it is them
-                // TODO: Only show turn timer if we are on the same board as turn switch packet 
-                startTurnTimer(data.getUint16(1));
+                myTurn = data.getUint8(7) == serverPackets.Me;
+                let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`);
+                const ctx = canvas.getContext("2d", { alpha: false });
+                // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
+                if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
+                    startTurnTimer(data.getUint16(1));
+                    // TODO: Set a "current" property on this to true, so that drawPieces can hilight it
+                    ctx.save();
+                    ctx.fillStyle = "#FFCD004D";
+                    ctx.fillRect(Math.round(data.getUint8(5)) * TILE_WIDTH, Math.round(data.getUint8(6)) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+                    ctx.restore();
+                }
+                break;
+            }
+            case serverPackets.PieceKilled: {
+                //TODO: Death animation?
+                let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf();
+                map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null;
+                addChatMessage(`💀 ${previous.type} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent");
+                if (data.getUint8(5) == serverPackets.Me) {
+                    deathMenu.removeAttribute("closed");
+                    inputPermitted = false;
+                    setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0);
+                }
                 break;
             }
             case serverPackets.Spawn: {
@@ -404,6 +450,7 @@ function connect(address) {
                     });
                     window.setTimeout(() => spawnMenu.style.display = "none", 200);
                 }
+                addChatMessage(`✨ ${piece.type} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent");
                 (_a = (_b = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)])[_c = data.getUint8(4)]) !== null && _a !== void 0 ? _a : (_b[_c] = piece);
                 drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`));
                 break;
@@ -413,15 +460,7 @@ function connect(address) {
                 break;
             }
             case serverPackets.Chat: {
-                let el = document.createElement("span");
-                el.textContent = ">> " + decoder.decode(data.buffer.slice(1));
-                chatMessages.appendChild(el);
-                chatMessages.appendChild(document.createElement("br"));
-                // Limit chat messages from becoming too long and causing issues
-                chatMessages.scrollTo(0, chatMessages.scrollHeight);
-                if (chatMessages.childElementCount > 100) {
-                    chatMessages.removeChild(chatMessages.firstElementChild);
-                }
+                addChatMessage(decoder.decode(data.buffer.slice(1)));
                 break;
             }
             case serverPackets.FriendRequest:
@@ -437,6 +476,19 @@ function connect(address) {
     ws.onclose = (event) => {
         console.error(event);
     };
+}
+function addChatMessage(message, event = null) {
+    let el = document.createElement("span");
+    el.textContent = event ? message : ">> " + message;
+    if (event)
+        el.setAttribute(event, String(true));
+    chatMessages.appendChild(el);
+    chatMessages.appendChild(document.createElement("br"));
+    // Limit chat messages from becoming too long and causing issues
+    chatMessages.scrollTo(0, chatMessages.scrollHeight);
+    if (chatMessages.childElementCount > 100) {
+        chatMessages.removeChild(chatMessages.firstElementChild);
+    }
 }
 function sendChatMessage(message) {
     let encoded = encoder.encode("0" + message);
@@ -508,28 +560,28 @@ function fillTile(canvas, tileColumn, tileRow, special = false) {
     ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
     ctx.restore();
 }
-function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
+function drawValidMoves(canvas, column, row, type, colour) {
     const ctx = canvas.getContext("2d", { alpha: false });
     const pieces = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")].pieces;
     // TODO: Show moves that would put you in danger (or in king's case, check)
-    switch (pieceType) {
+    switch (type) {
         case pieceTypes.Bishop:
-            /*for (let x = pieceColumn - COLUMNS; x < pieceColumn + COLUMNS + 1; x++) {
-                if (x == pieceColumn) continue
-                fillTile(canvas, x, x + pieceRow, (pieces[x] != null && pieces[x][x] != null))
-                //fillTile(canvas, x, -x - pieceRow, (pieces[x] != null && pieces[x][-x] != null))
+            /*for (let x = column - COLUMNS; x < column + COLUMNS + 1; x++) {
+                if (x == column) continue
+                fillTile(canvas, x, x + row, (pieces[x] != null && pieces[x][x] != null))
+                //fillTile(canvas, x, -x - row, (pieces[x] != null && pieces[x][-x] != null))
             }*/
             break;
         case pieceTypes.King:
             // TODO: Include invalidated moves from others putting in check
             // We create a square/border of allowed around, excluding central current pos
-            for (let x = pieceColumn - 1; x <= pieceColumn + 1; x++) {
-                for (let y = pieceRow - 1; y <= pieceRow + 1; y++) {
-                    if (x == pieceColumn && y == pieceRow)
+            for (let x = column - 1; x <= column + 1; x++) {
+                for (let y = row - 1; y <= row + 1; y++) {
+                    if (x == column && y == row)
                         continue;
                     if (pieces[x] != null && pieces[x][y] != null) {
                         fillTile(canvas, x, y, true);
-                        break;
+                        continue;
                     }
                     fillTile(canvas, x, y);
                 }
@@ -537,14 +589,14 @@ function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
             break;
         case pieceTypes.Knight:
             const rookMoves = [
-                [pieceColumn + 1, pieceRow + 2],
-                [pieceColumn + 2, pieceRow + 1],
-                [pieceColumn + 2, pieceRow - 1],
-                [pieceColumn + 1, pieceRow - 2],
-                [pieceColumn - 1, pieceRow - 2],
-                [pieceColumn - 2, pieceRow - 1],
-                [pieceColumn - 2, pieceRow + 1],
-                [pieceColumn - 1, pieceRow + 2]
+                [column + 1, row + 2],
+                [column + 2, row + 1],
+                [column + 2, row - 1],
+                [column + 1, row - 2],
+                [column - 1, row - 2],
+                [column - 2, row - 1],
+                [column - 2, row + 1],
+                [column - 1, row + 2]
             ];
             for (let move of rookMoves) {
                 fillTile(canvas, move[0], move[1], (pieces[move[0]] != null && pieces[move[0]][move[1]] != null));
@@ -553,36 +605,34 @@ function drawValidMoves(canvas, pieceColumn, pieceRow, pieceType) {
         case pieceTypes.Pawn:
             // TODO: Implement correct suggestions for pawn colour variations
             // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
-            if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow - 1] != null) {
-                fillTile(canvas, pieceColumn - 1, pieceRow - 1, true);
-            }
-            else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null) {
-                fillTile(canvas, pieceColumn - 1, pieceRow + 1, true);
-            }
-            else { //TODO: Fix inlinescript minification breaking trailing elses
-                fillTile(canvas, pieceColumn, pieceRow - 1);
-            }
+            if (pieces[column - 1] != null && pieces[column - 1][row - 1] != null)
+                fillTile(canvas, column - 1, row - 1, true);
+            else if (pieces[column - 1] != null && pieces[column - 1][row + 1] != null)
+                fillTile(canvas, column - 1, row + 1, true);
+            else
+                fillTile(canvas, column, (colour == pieceColours.White ? row + 1 : row - 1));
             break;
         case pieceTypes.Queen:
-        //TODO: Depends on bishop
+            //TODO: Depends on bishop
+            break;
         case pieceTypes.Rook:
-            for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
-                if (x == pieceColumn)
+            for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
+                if (x == column)
                     continue;
-                if (pieces[x] != null && pieces[x][pieceRow] != null) {
-                    fillTile(canvas, x, pieceRow, true);
-                    break;
+                if (pieces[x] != null && pieces[x][row] != null) {
+                    fillTile(canvas, x, row, true);
+                    continue;
                 }
-                fillTile(canvas, x, pieceRow);
+                fillTile(canvas, x, row);
             }
-            for (let y = -ROWS + pieceRow; y < ROWS + pieceRow + 1; y++) {
-                if (y == pieceRow)
+            for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
+                if (y == row)
                     continue;
-                if (pieces[pieceColumn] != null && pieces[pieceColumn][y] != null) {
-                    fillTile(canvas, pieceColumn, y, true);
-                    break;
+                if (pieces[column] != null && pieces[column][y] != null) {
+                    fillTile(canvas, column, y, true);
+                    continue;
                 }
-                fillTile(canvas, pieceColumn, y);
+                fillTile(canvas, column, y);
             }
             break;
     }
@@ -761,7 +811,7 @@ function onCanvasMouseDown(event) {
     let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH);
     let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT);
     tileIndicator.textContent =
-        (tileClickedX < 26 ? ALPHABET[tileClickedX] : tileClickedX + ", ") + tileClickedY.toString();
+        toAlphabetCoordinate(tileClickedX, tileClickedY).join(", ");
     boardIndicator.textContent =
         `${+canvas.getAttribute("column") + 1}, ${+canvas.getAttribute("row") + 1}`;
     // If we are selecting on a piece, we are not dragging the board, block all propogation
@@ -774,6 +824,9 @@ function onCanvasMouseDown(event) {
         document.body.style.cursor = "grab";
         pieceDragging = true;
     }
+}
+function toAlphabetCoordinate(x, y) {
+    return [(x < 26 ? ALPHABET[x] : x), String(y)];
 }
 function onCanvasMouseDrag(event) {
     if (!pieceDragging || !inputPermitted) {
@@ -794,9 +847,6 @@ function onCanvasMouseDrag(event) {
     path.onload = () => {
         drawCheckeredBackground(canvas);
         drawPieces(canvas);
-        // We can only drag ourself, so we show our own moves
-        // drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
-        //TODO: Correct colour math
         ctx.save();
         ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D";
         // Top 2 main
@@ -827,7 +877,7 @@ function onCanvasMouseUp(event) {
         .pieces[tileClickedX][tileClickedY];
     if (piece != null) {
         // If we click on any piece, view what moves they could make
-        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type);
+        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type, piece.colour);
         event.stopPropagation();
     }
     else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
