@@ -427,10 +427,18 @@
                 }
                 case serverPackets.TurnChanged: {
                     // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
-                    let myTurn = data.getUint8(7) == serverPackets.Me
-                    // TODO: Show an effect over the current piece using position data if it is them
-                    // TODO: Only show turn timer if we are on the same board as turn switch packet 
-                    startTurnTimer(data.getUint16(1))
+                    myTurn = data.getUint8(7) == serverPackets.Me
+                    let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`) as HTMLCanvasElement
+
+                    // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
+                    if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
+                        startTurnTimer(data.getUint16(1))
+                        // TODO: Set a "current" property on this to true, so that drawPieces can hilight it
+                        ctx.save()
+                        ctx.fillStyle = "#FFCD004D"
+                        ctx.fillRect(Math.round(data.getUint8(5)) * TILE_WIDTH, Math.round(data.getUint8(6)) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+                        ctx.restore()
+                    }
                     break
                 }
                 case serverpackets.PieceKilled: {
