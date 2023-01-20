@@ -41,7 +41,7 @@ public sealed class ServerInstance
         await app.StartAsync();
     }
     
-    void OnClientConnected(object? sender, ClientConnectedEventArgs args)
+    private void OnClientConnected(object? sender, ClientConnectedEventArgs args)
     {
         // (byte) Packet code = data[0], (byte) boards columns = data[1], (byte) boards rows = data[2],
         // (byte) pieces columns = data[3], (byte) pieces rows = data[4], (byte..[]) pieces data[5..]
@@ -82,7 +82,7 @@ public sealed class ServerInstance
         app.SendAsync(args.Client, colourBalanceBuffer.ToArray());
     }
 
-    void OnMessageReceived(object? sender, MessageReceivedEventArgs args)
+    private void OnMessageReceived(object? sender, MessageReceivedEventArgs args)
     {
         var data = new Span<byte>(args.Data.ToArray());
         var code = data[0];
@@ -344,7 +344,6 @@ public sealed class ServerInstance
     
     private ref Piece GetPieceInstance(string token)
     {
-        //???
         var located = VirtualMap.LocatePieceInstance(token);
         
         return ref VirtualMap.Boards[located.BoardColumn, located.BoardRow]
@@ -352,6 +351,5 @@ public sealed class ServerInstance
     }
 }
 
-// TODO: When saving backups, including client pieces is fine. But when saving board state, for example, with a server
-// TODO: restart, we should not include the clients there, we only need to save the parameters used to create such board.
-// TODO: Include a copy of clients in save to skip all of this.
+// TODO: When saving board state, for example, with a server restart, we should 
+// TODO: include the clients there (the piece instances in the board pieces arrays).

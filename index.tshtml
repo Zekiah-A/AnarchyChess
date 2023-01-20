@@ -589,44 +589,44 @@
         ctx.restore()
     }
 
-    function drawValidMoves(canvas: HTMLCanvasElement, pieceColumn: number, pieceRow: number, pieceType: number) {
+    function drawValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number, colour: number) {
         const ctx = canvas.getContext("2d", { alpha: false })!
         const pieces = map.boards[+canvas.getAttribute("column")!][+canvas.getAttribute("row")!].pieces
 
         // TODO: Show moves that would put you in danger (or in king's case, check)
-        switch(pieceType) {
+        switch(type) {
             case pieceTypes.Bishop:
-                /*for (let x = pieceColumn - COLUMNS; x < pieceColumn + COLUMNS + 1; x++) {
-                    if (x == pieceColumn) continue
-                    fillTile(canvas, x, x + pieceRow, (pieces[x] != null && pieces[x][x] != null))
-                    //fillTile(canvas, x, -x - pieceRow, (pieces[x] != null && pieces[x][-x] != null))
+                /*for (let x = column - COLUMNS; x < column + COLUMNS + 1; x++) {
+                    if (x == column) continue
+                    fillTile(canvas, x, x + row, (pieces[x] != null && pieces[x][x] != null))
+                    //fillTile(canvas, x, -x - row, (pieces[x] != null && pieces[x][-x] != null))
                 }*/
                 break
             case pieceTypes.King:
                 // TODO: Include invalidated moves from others putting in check
                 // We create a square/border of allowed around, excluding central current pos
-                for (let x = pieceColumn - 1; x <= pieceColumn + 1; x++) {
-                    for (let y = pieceRow - 1; y <= pieceRow + 1; y++) {
-                        if (x == pieceColumn && y == pieceRow) continue
+                for (let x = column - 1; x <= column + 1; x++) {
+                    for (let y = row - 1; y <= row + 1; y++) {
+                        if (x == column && y == row) continue
                         if (pieces[x] != null && pieces[x][y] != null) {
                             fillTile(canvas, x, y, true)
-                            break
+                            continue
                         }
 
-                        fillTile(canvas, x, y, )
+                        fillTile(canvas, x, y)
                     }
                 }
                 break
             case pieceTypes.Knight:
                 const rookMoves = [
-                    [ pieceColumn + 1, pieceRow + 2 ],
-                    [ pieceColumn + 2, pieceRow + 1 ],
-                    [ pieceColumn + 2, pieceRow - 1 ],
-                    [ pieceColumn + 1, pieceRow - 2 ],
-                    [ pieceColumn - 1, pieceRow - 2 ],
-                    [ pieceColumn - 2, pieceRow - 1 ],
-                    [ pieceColumn - 2, pieceRow + 1 ],
-                    [ pieceColumn - 1, pieceRow + 2 ]
+                    [ column + 1, row + 2 ],
+                    [ column + 2, row + 1 ],
+                    [ column + 2, row - 1 ],
+                    [ column + 1, row - 2 ],
+                    [ column - 1, row - 2 ],
+                    [ column - 2, row - 1 ],
+                    [ column - 2, row + 1 ],
+                    [ column - 1, row + 2 ]
                 ]
 
                 for (let move of rookMoves) {
@@ -636,34 +636,34 @@
             case pieceTypes.Pawn:
                 // TODO: Implement correct suggestions for pawn colour variations
                 // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
-                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
-                    fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
-                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
-                    fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
+                if (pieces[column - 1] != null  && pieces[column - 1][row - 1] != null)
+                    fillTile(canvas, column - 1, row - 1, true)
+                else if (pieces[column - 1] != null && pieces[column - 1][row + 1] != null)
+                    fillTile(canvas, column - 1, row + 1, true)
                 else
-                    fillTile(canvas, pieceColumn, pieceRow - 1)
+                    fillTile(canvas, column, (colour == pieceColours.White ? row + 1 ? row - 1))
                 break
             case pieceTypes.Queen:
                 //TODO: Depends on bishop
             case pieceTypes.Rook:
-                for (let x = -COLUMNS + pieceColumn; x < COLUMNS + pieceColumn + 1; x++) {
-                    if (x == pieceColumn) continue
-                    if (pieces[x] != null  && pieces[x][pieceRow] != null) {
-                        fillTile(canvas, x, pieceRow, true)
-                        break
+                for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
+                    if (x == column) continue
+                    if (pieces[x] != null  && pieces[x][row] != null) {
+                        fillTile(canvas, x, row, true)
+                        continue
                     }
 
-                    fillTile(canvas, x, pieceRow)
+                    fillTile(canvas, x, row)
                 }
 
-                for (let y = -ROWS + pieceRow; y < ROWS + pieceRow + 1; y++) {
-                    if (y == pieceRow) continue
-                    if (pieces[pieceColumn] != null  && pieces[pieceColumn][y] != null) {
-                        fillTile(canvas, pieceColumn, y, true)
-                        break
+                for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
+                    if (y == row) continue
+                    if (pieces[column] != null  && pieces[column][y] != null) {
+                        fillTile(canvas, column, y, true)
+                        continue
                     }
 
-                    fillTile(canvas, pieceColumn, y)
+                    fillTile(canvas, column, y)
                 }
                 break
         }
@@ -926,8 +926,6 @@
         path.onload = () => {
             drawCheckeredBackground(canvas)
             drawPieces(canvas)
-            // We can only drag ourself, so we show our own moves
-            // drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
             ctx.save()
             ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"
@@ -966,7 +964,7 @@
 
         if (piece != null) {
             // If we click on any piece, view what moves they could make
-            drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type)
+            drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type, piece.colour)
             event.stopPropagation()
         }
         else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
