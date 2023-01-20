@@ -272,7 +272,7 @@
     let boardRow = 0
     let pieceColumn = 0
     let pieceRow = 0
-    let turn = 0
+    let myTurn = false
     let deltaX = 0
     let deltaY = 0
     let pieceDragging = false
@@ -387,19 +387,20 @@
                         pieceRow = data.getUint8(8)
 
                         setPosition(data.getUint8(5), data.getUint8(6), data.getUint8(7), data.getUint8(8))
+                        drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
+                        drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
                     }
 
-                    drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
-                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
-                    drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
-                    drawPieces(document.querySelector(`[column="${newBoardColumn}"][row="${newBoardRow}"]`)!)
+                    drawCheckeredBackground(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`)!)
+                    drawPieces(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`)!)
                     break
                 }
                 case serverPackets.TurnChanged: {
                     // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
-                    turn = data.getUint16(1)
-                    //TODO: Show an effect over the current piece using position data if it is them
-                    startTurnTimer(data.getUint16(7) == serverPackets.Me)
+                    let myTurn = data.getUint8(7) == serverPackets.Me
+                    // TODO: Show an effect over the current piece using position data if it is them
+                    // TODO: Only show turn timer if we are on the same board as turn switch packet 
+                    startTurnTimer(data.getUint16(1))
                     break
                 }
                 case serverPackets.Spawn: {
@@ -717,12 +718,12 @@
 
     
 
-    function startTurnTimer(turn: number, me: bool) {    
+    function startTurnTimer(turn: number) {    
         if (turnTimerInterval != null)
             clearInterval(turnTimerInterval)
 
         // If the turn is us
-        if (me) {
+        if (myTurn) {
             meTurnPopup.style.display = "block"
 
             meTurnPopup.animate([
