@@ -99,12 +99,12 @@
             "
             onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
             onclick="
-                let target = (event.target as HTMLElement)
+                let target = event.target as HTMLElement
                 if (target == this)
                     return
                 this.querySelector('[selected]')?.removeAttribute('selected')
                 target.setAttribute('selected', String(true))
-                pieceType = pieceTypes[(event.target as HTMLElement).textContent]
+                pieceType = pieceTypes[target.textContent]
             ">
             <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
             <div>Bishop<img src="Assets/bishop_black.svg"></div>
@@ -117,7 +117,7 @@
         <div>Choose a colour</div>
         <div style="flex-grow: 1;"></div>
         <div class="dual-options" onclick="
-            let target = (event.target as HTMLElement)
+            let target = event.target as HTMLElement
             if (target == this)
                 return
             this.querySelector('[selected]')?.removeAttribute('selected')
@@ -374,11 +374,12 @@
                     break
                 }
                 case serverPackets.Move: {
-                    // TODO: Animate the move of the piece to new position
                     let previous: Piece = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)]
+                    let previousCanvas = document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`) as HTMLCanvasElement
+                    let canvas = document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`) as HTMLCanvasElement
 
+                    // We "remove" the piece from the board until we have animated it's dummy representation to the new position
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
-                    map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous
 
                     if (data.getUint8(9) == serverPackets.Me) {                        
                         boardColumn = data.getUint8(5)
@@ -387,12 +388,43 @@
                         pieceRow = data.getUint8(8)
 
                         setPosition(data.getUint8(5), data.getUint8(6), data.getUint8(7), data.getUint8(8))
-                        drawCheckeredBackground(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
-                        drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
+                        drawCheckeredBackground(previousCanvas)
+                        drawPieces(previousCanvas)
+                        drawCheckeredBackground(canvas)
+                        drawPieces(canvas)
+                        break
                     }
 
-                    drawCheckeredBackground(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`)!)
-                    drawPieces(document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`)!)
+                    const ctx = canvas.getContext("2d", { alpha: false })!
+                    const path = new Image()
+                    path.src = "Assets/" + previous.type.toLowerCase()
+                        + "_" + previous.colour.toLowerCase() + ".svg"
+
+                    path.onload = () => {
+                        // Ease piece move from original spot to new
+                        let current = 0
+                        const repeats = 50
+
+                        let moveEase = setInterval(() => {
+                            let ease = easeOutCubic(current / repeats)
+                            let dispX = data.getUint8(3) + (data.getUint8(7) - data.getUint8(3)) * ease
+                            let dispY = data.getUint8(4) + (data.getUint8(8) - data.getUint8(4)) * ease
+
+                            // Ease on X, for example would be original X + ((newX - originalX) * ease) 
+                            ctx.drawImage(path, dispX * TILE_WIDTH, dispY * TILE_HEIGHT)
+                            drawCheckeredBackground(previousCanvas)
+                            drawPieces(previousCanvas)
+                            drawCheckeredBackground(canvas)
+                            drawPieces(canvas)
+
+                            current++
+                            if (current >= repeats) {
+                                // We finally "finish" the move, and commit transferring the piece
+                                map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous
+                            }
+                                clearInterval(moveEase)
+                        }, 16)
+                    }
                     break
                 }
                 case serverPackets.TurnChanged: {
@@ -509,28 +541,32 @@
         while (tileColumn < 0) {
             canvas = board.querySelector(
                 `[column="${+canvas.getAttribute("column")! - 1}"][row="${+canvas.getAttribute("row")!}"]`)!
-            if (canvas == null) return
+            if (canvas == null)
+                return
 
             tileColumn = COLUMNS - Math.abs(tileColumn)
         }
         while (tileRow < 0) {
             canvas = board.querySelector(
                 `[column="${+canvas.getAttribute("column")!}"][row="${+canvas.getAttribute("row")! - 1}"]`)!
-            if (canvas == null) return
+            if (canvas == null)
+                return
 
             tileRow = ROWS - Math.abs(tileRow)
         }
         while (tileColumn > COLUMNS - 1) {
             canvas = board.querySelector(
                 `[column="${+canvas.getAttribute("column")! + 1}"][row="${canvas.getAttribute("row")!}"]`)!
-            if (canvas == null) return
+            if (canvas == null)
+                return
 
             tileColumn -= COLUMNS
         }
         while (tileRow > ROWS - 1) {
             canvas = board.querySelector(
                 `[column="${+canvas.getAttribute("column")!}"][row="${+canvas.getAttribute("row")! + 1}"]`)!
-            if (canvas == null) return
+            if (canvas == null)
+                return
 
             tileRow -= ROWS
         }
@@ -600,15 +636,12 @@
             case pieceTypes.Pawn:
                 // TODO: Implement correct suggestions for pawn colour variations
                 // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
-                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null) {
+                if (pieces[pieceColumn - 1] != null  && pieces[pieceColumn - 1][pieceRow - 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow - 1, true)
-                }
-                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null) {
+                else if (pieces[pieceColumn - 1] != null && pieces[pieceColumn - 1][pieceRow + 1] != null)
                     fillTile(canvas, pieceColumn - 1, pieceRow + 1, true)
-                }
-                else {//TODO: Fix inlinescript minification breaking trailing elses
+                else
                     fillTile(canvas, pieceColumn, pieceRow - 1)
-                }
                 break
             case pieceTypes.Queen:
                 //TODO: Depends on bishop
@@ -896,7 +929,6 @@
             // We can only drag ourself, so we show our own moves
             // drawValidMoves(canvas, pieceColumn, pieceRow, pieceType)
 
-            //TODO: Correct colour math
             ctx.save()
             ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"
             // Top 2 main
