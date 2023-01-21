@@ -104,7 +104,7 @@ public sealed class ServerInstance
                 {
                     var authenticatingToken = Encoding.UTF8.GetString(data[8..]);
 
-                    if (Clients.TryGetKey(authenticatingToken, out var existingClient))
+                    if (Clients.TryGetKey(authenticatingToken, out var existingMetadata))
                     {
                         Logger?.Invoke(
                             $"Spawn rejected from client {args.Client} due to invalid authentication token.");
@@ -113,7 +113,7 @@ public sealed class ServerInstance
                     }
 
                     // Re-hook up this client to their rightful auth token
-                    Clients.Remove(existingClient);
+                    Clients.Remove(existingMetadata);
                     Clients.Add(args.Client, authenticatingToken);
 
                     // Skip all the ceremony, and act like they were connected all along
@@ -259,7 +259,8 @@ public sealed class ServerInstance
         
         foreach (var client in app.Clients)
         {
-            if (Clients.GetValue(client).Equals(token))
+            Clients.TryGetValue(client, out var pieceToken);
+            if (pieceToken.Equals(token))
             {
                 killBuffer[5] = (byte) ServerPackets.Me;
                 app.SendAsync(client, killBuffer.ToArray());
@@ -283,13 +284,15 @@ public sealed class ServerInstance
         var turnBuffer = (Span<byte>) stackalloc byte[8];
         turnBuffer[0] = (byte) ServerPackets.TurnChanged;
         BinaryPrimitives.WriteUInt16BigEndian(turnBuffer[1..], (ushort) args.Turn);
-        SerialisePositionPacket(args.CurrentPiece.Token).CopyTo(turnBuffer.ToArray(), 3);
+        new Span<byte>(SerialisePositionPacket(args.Token)).CopyTo(turnBuffer[3..]);
         
         lock (app.Clients)
         {
             foreach (var client in app.Clients)
             {
-                if (Clients.GetKey(args.CurrentPiece.Token) == client)
+                Clients.TryGetKey(args.Token, out var clientMetadata);
+                
+                if (clientMetadata == client)
                 {
                     turnBuffer[7] = (byte) ServerPackets.Me;
                     app.SendAsync(client, turnBuffer.ToArray());

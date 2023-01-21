@@ -293,7 +293,7 @@
         colour: pieceColours;
         me: boolean;
     }
-    
+
     class Map implements Map { 
         constructor(public boardsColumns : number, public boardsRows : number, pieceColumns : number, pieceRows : number) {
             this.boards = new Array<Array<Board>>
@@ -434,10 +434,18 @@
                     // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
                     if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
                         startTurnTimer(data.getUint16(1))
-                        // TODO: Set a "current" property on this to true, so that drawPieces can hilight it
+
+                        let x = data.getUint8(5) * TILE_WIDTH
+                        let y = data.getUint8(6) * TILE_HEIGHT
+
                         ctx.save()
                         ctx.fillStyle = "#FFCD004D"
-                        ctx.fillRect(Math.round(data.getUint8(5)) * TILE_WIDTH, Math.round(data.getUint8(6)) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+                        // Draw left/right side full height rects
+                        ctx.fillRect(x, y, 8, TILE_HEIGHT)
+                        ctx.fillRect(x + TILE_WIDTH - 8, y, 8, TILE_HEIGHT)
+                        //Draw smaller top/bottom fillers
+                        ctx.fillRect(x + 8, y, TILE_WIDTH - 16, 8)
+                        ctx.fillRect(x + 8, y + TILE_HEIGHT - 8, TILE_WIDTH - 16, 8)
                         ctx.restore()
                     }
                     break
@@ -448,7 +456,7 @@
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
 
                     addChatMessage(
-                        `💀 ${previous.type} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
+                        `💀 ${pieceTypes[previous.type]} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
                         "deathevent"
                     )
 
@@ -490,7 +498,7 @@
                     }
 
                     addChatMessage(
-                        `✨ ${piece.type} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
+                        `✨ ${pieceTypes[piece.type]} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`,
                         "deathevent"
                     )
 
@@ -787,8 +795,6 @@
         }
         ctx.restore()
     }
-
-    
 
     function startTurnTimer(turn: number) {    
         if (turnTimerInterval != null)

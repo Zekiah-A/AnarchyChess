@@ -8,7 +8,7 @@ namespace AnarchyChess.Server.Virtual;
 public sealed class Board
 {
     public Piece[,] Pieces { get; private set; }
-    public List<Piece> Turns { get; private set; }
+    public List<string> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
     private int Columns { get; }
@@ -24,7 +24,7 @@ public sealed class Board
         Column = column;
         Rows = rows;
         Columns = columns;
-        Turns = new List<Piece>();
+        Turns = new List<string>();
         Pieces = new Piece[columns, rows];
         
         TurnTimer = new Timer(period.Milliseconds <= 0 ? 10_000 : period.Milliseconds);
@@ -53,7 +53,7 @@ public sealed class Board
         }
         
         Pieces[location.PieceColumn, location.PieceRow] = piece;
-        Turns.Add(piece);
+        Turns.Add(piece.Token);
         return true;
     }
     
@@ -163,9 +163,8 @@ public sealed class Board
     public void DeletePiece(string token)
     {
         var position = LocatePieceInstance(token);
-        var piece = Pieces[position.PieceColumn, position.PieceRow];
         
-        Turns.Remove(piece);
+        Turns.Remove(token);
         Pieces[position.PieceColumn, position.PieceRow].Token = "";
     }
 
