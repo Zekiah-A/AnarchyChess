@@ -419,8 +419,8 @@
                             if (current >= repeats) {
                                 // We finally "finish" the move, and commit transferring the piece
                                 map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous
-                            }
                                 clearInterval(moveEase)
+                            }
                         }, 16)
                     }
                     break
@@ -429,23 +429,22 @@
                     // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
                     myTurn = data.getUint8(7) == serverPackets.Me
                     let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`) as HTMLCanvasElement
-                    const ctx = canvas.getContext("2d", { alpha: false })!
+                    const ctx = canvas.getContext("2d", { alpha: true })!
 
                     // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
                     if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
                         startTurnTimer(data.getUint16(1))
+                        drawCheckeredBackground(canvas)
+                        drawPieces(canvas)
 
                         let x = data.getUint8(5) * TILE_WIDTH
                         let y = data.getUint8(6) * TILE_HEIGHT
 
                         ctx.save()
-                        ctx.fillStyle = "#FFCD004D"
-                        // Draw left/right side full height rects
-                        ctx.fillRect(x, y, 8, TILE_HEIGHT)
-                        ctx.fillRect(x + TILE_WIDTH - 8, y, 8, TILE_HEIGHT)
-                        //Draw smaller top/bottom fillers
-                        ctx.fillRect(x + 8, y, TILE_WIDTH - 16, 8)
-                        ctx.fillRect(x + 8, y + TILE_HEIGHT - 8, TILE_WIDTH - 16, 8)
+                        ctx.fillStyle = "#FFCD0473"
+                        ctx.strokeStyle = "#FFCD0473"
+                        ctx.lineWidth = 8
+                        ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT); 
                         ctx.restore()
                     }
                     break
@@ -508,6 +507,10 @@
                 }
                 case serverPackets.RejectSpawn: {
                     selectSpawnLocation()
+                    break
+                }
+                case serverPackets.RejectMove: {
+                    console.error("move rejected")
                     break
                 }
                 case serverPackets.Chat: {
@@ -1024,7 +1027,7 @@
 
             // Move our piece to that location, and send it to the server,
             // issuing the final move when the server confirms we have finished the move.
-            let moveArray = new Uint8Array(7)
+            let moveArray = new Uint8Array(5)
             moveArray[0] = clientPackets.Move
             moveArray[1] = Number(canvas.getAttribute("column"))
             moveArray[2] = Number(canvas.getAttribute("row"))

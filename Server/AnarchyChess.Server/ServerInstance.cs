@@ -170,6 +170,7 @@ public sealed class ServerInstance
                 // Packet is boardColumn = data[1], boardRow = data[2], pieceColumn = data[3], pieceRow = data[4]
                 if (data.Length != 5)
                 {
+                    Logger?.Invoke($"Move rejected from client {args.Client} due to invalid packet length.");
                     return;
                 }
 
@@ -180,7 +181,7 @@ public sealed class ServerInstance
                 }
 
                 // Record previous move packet, board row and board column, before manipulating piece position.
-                var previousMove = SerialisePositionPacket(clientToken);
+                var previousPosition = SerialisePositionPacket(clientToken);
                 var newLocation = new BoardLocation(data[1], data[2], data[3], data[4]);
 
                 // Attempt move piece, reject if move is invalid 
@@ -192,15 +193,22 @@ public sealed class ServerInstance
                 }
 
                 // Send to all connected clients
-                var sendBuffer = new byte[9];
-                sendBuffer[0] = (byte) ServerPackets.Spawn;
-                SerialiseMovePacket(clientToken, previousMove).CopyTo(sendBuffer, 1);
+                var moveBuffer = new byte[10];
+                moveBuffer[0] = (byte) ServerPackets.Move;
+                SerialiseMovePacket(clientToken, previousPosition).CopyTo(moveBuffer, 1);
 
                 foreach (var client in app.Clients)
                 {
-                    app.SendAsync(client, sendBuffer.ToArray());
-                }
+                    if (Clients.TryGetValue(client, out var pieceToken) && pieceToken.Equals(clientToken))
+                    {
+                        moveBuffer[9] = (byte) ServerPackets.Me;
+                        app.SendAsync(client, moveBuffer);
+                        moveBuffer[9] = 0;
+                        continue;
+                    }
 
+                    app.SendAsync(client, moveBuffer);
+                }
                 break;
             }
             case ClientPackets.Chat:
@@ -259,16 +267,15 @@ public sealed class ServerInstance
         
         foreach (var client in app.Clients)
         {
-            Clients.TryGetValue(client, out var pieceToken);
-            if (pieceToken.Equals(token))
+            if (Clients.TryGetValue(client, out var pieceToken) && pieceToken.Equals(token))
             {
                 killBuffer[5] = (byte) ServerPackets.Me;
-                app.SendAsync(client, killBuffer.ToArray());
+                app.SendAsync(client, killBuffer);
                 killBuffer[5] = 0;
                 continue;
             }
 
-            app.SendAsync(client, killBuffer.ToArray());
+            app.SendAsync(client, killBuffer);
         }
     }
     
@@ -290,9 +297,7 @@ public sealed class ServerInstance
         {
             foreach (var client in app.Clients)
             {
-                Clients.TryGetKey(args.Token, out var clientMetadata);
-                
-                if (clientMetadata == client)
+                if (Clients.TryGetKey(args.Token, out var clientMetadata) && clientMetadata == client)
                 {
                     turnBuffer[7] = (byte) ServerPackets.Me;
                     app.SendAsync(client, turnBuffer.ToArray());
@@ -336,19 +341,19 @@ public sealed class ServerInstance
     }
 
     /// <summary>
-    /// Length = 9
+    /// Length = 8
     /// </summary>
     /// <param name="token">Token of client that we are serialising for</param>
     /// <param name="previousPosition">Byte array returned from "SerialisePositionPacket".</param>
     private byte[] SerialiseMovePacket(string token, byte[] previousPosition)
     {
         var located = VirtualMap.LocatePieceInstance(token);
-        var buffer = new byte[9];
+        var buffer = new byte[8];
         previousPosition.CopyTo(buffer, 0);
-        buffer[5] = (byte) located.BoardColumn;
-        buffer[6] = (byte) located.BoardRow;
-        buffer[7] = (byte) located.PieceColumn;
-        buffer[8] = (byte) located.PieceRow;
+        buffer[4] = (byte) located.BoardColumn;
+        buffer[5] = (byte) located.BoardRow;
+        buffer[6] = (byte) located.PieceColumn;
+        buffer[7] = (byte) located.PieceRow;
         
         return buffer;
     }

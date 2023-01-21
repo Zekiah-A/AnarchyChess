@@ -59,13 +59,12 @@ public sealed class Board
     
     public bool TryMovePiece(string token, PieceLocation newLocation)
     {
-        TurnTimer.Stop();
-
         var currentLocation = LocatePieceInstance(token);
         var piece = Pieces[currentLocation.PieceColumn, currentLocation.PieceRow];
 
-        if (Turns[CurrentTurn].Equals(piece))
+        if (!Turns[CurrentTurn].Equals(token))
         {
+            // CLien tis trying to move while it is not their turn
             return false;
         }
         
@@ -153,7 +152,9 @@ public sealed class Board
         {
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
-
+        
+        // Stop running this turn, and go to the next turn if all was valid
+        TurnTimer.Stop();
         ProgressTurn(this, null);
         TurnTimer.Start();
         
