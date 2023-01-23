@@ -602,7 +602,7 @@
     }
 
     //TODO: Switch to get offset boardLocation!
-    function getOffsetCanvas(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number) {
+    function getOffsetCanvas(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number): ([HTMLCanvasElement, number, number] | null)  {
         // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
         while (tileColumn < 0) {
@@ -661,10 +661,14 @@
     function drawValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number, colour: number) {
 
         // TODO: Show moves that would put you in danger (or in king's case, check)
-
+        for (let location of getValidMoves(canvas, column, row, type)) {
+            let canvas2 = board.querySelector(`[column="${location.boardColumn}"][row="${location.boardRow}"]`) as HTMLCanvasElement
+            fillTile(canvas, location.pieceColumn, location.pieceRow, map.boards[location.boardColumn][location.boardRow]
+                    .pieces[location.pieceColumn][location.pieceRow] != null)
+        }
     }
 
-    function getValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number)
+    function getValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number) : Array<BoardLocation>
     {
         let validMoves = new Array<BoardLocation>
                 
@@ -707,21 +711,24 @@
             }
             case pieceTypes.Pawn: {
                 let offset = getOffsetCanvas(canvas, column - 1, row - 1) as [HTMLCanvasElement, number, number] | null
-                let pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces //TODO: Is not null safe
+                //TODO: Is not null safe
+                let pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces
                 if (offset != null && (pieces[offset[1] - 1] != null  && pieces[offset[1] - 1][offset[2] - 1] != null)) {
                     validMoves.push(
                         new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
                 }
 
                 offset = getOffsetCanvas(canvas, column - 1, row + 1) as ([HTMLCanvasElement, number, number] | null)
-                pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces
+                //TODO: Is not null safe
+                pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces
                 if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] + 1] != null)) {
                     validMoves.push(
                         new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
                 }
 
                 offset = getOffsetCanvas(canvas, column, row - 1) as ([HTMLCanvasElement, number, number] | null)
-                pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces
+                //TODO: Is not null safe
+                pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces
                 if (offset != null && (pieces[offset[1] - 1] == null)) {
                     validMoves.push(
                         new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
@@ -751,6 +758,8 @@
                 break
             }
         }
+
+        return validMoves
     }
 
     function selectSpawnLocation() {
@@ -913,6 +922,9 @@
 
     // We place the column, row in the screen centre
     function setPosition(boardColumn: number, boardRow: number, tileColumn: number, tileRow: number) {
+        if (positionEase != null)
+            clearInterval(positionEase)
+
         let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2
         let finalLeft = (centreX - ((boardColumn * TILE_WIDTH * COLUMNS) + (tileColumn * TILE_WIDTH)) * zoom)
         let finalTop = (centreY - ((boardRow * TILE_HEIGHT * ROWS) + (tileRow * TILE_HEIGHT)) * zoom)

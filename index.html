@@ -1,1 +1,936 @@
-<html><head> <title>Anarchy Chess</title> <meta name="description" content="A massive multiplayer chess board with slightly bent rules. Here be anarchy."> <meta name="keywords" content="chess anarchy game multiplayer online"> <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"> <meta charset="UTF-8"> <link rel="stylesheet" href="styles.css"></head> <body onmousedown=" dragging = true;" onmousemove=" onDragBody(event);" onwheel=" onWheelBody(event);" onmouseup=" dragging = false;"> <p class="copyright-notice"> If you're seeing this, you probably moved the board offscreen. ©Anarchy Chess, Zekiah-A </p> <div id="board"> </div> <div class="hud game-title"> <p>Anarchy Chess</p> </div> <div class="hud game-actions"> <p onclick=" chatPanel.toggleAttribute('closed');">Chat</p> <p onclick=" settingsPanel.toggleAttribute('closed');">Settings</p> <p>Help</p> </div> <div id="chatPanel" closed="true" class="info-panel"> <div id="chatMessages"> <span>>> Chat messages will appear here</span> </div> <input type="text" maxlength="250" onkeydown=" if (event.key == 'Enter') { let input = this; sendChatMessage(input.value); input.value = ''; }"> </div> <div id="settingsPanel" closed="true" class="info-panel"> <h4>Graphics options:</h4> <div style="display: flex;flex-direction: column;row-gap: 3px;" onclick=" let childIndex = Array.prototype.indexOf.call(this.children, event.target); if (childIndex == -1) return; let tileSize = [64, 128, 256][childIndex]; TILE_HEIGHT = tileSize; TILE_WIDTH = tileSize; board.style.width = (COLUMNS * TILE_WIDTH * map.boardsColumns) + 'px'; board.style.height = (ROWS * TILE_HEIGHT * map.boardsRows) + 'px'; localStorage.tileSize = tileSize; removeAllCanvases(); createAllCanvases();"> <input type="button" value="Low graphics"> <input type="button" value="Medium graphics"> <input type="button" value="High graphics"> </div> </div> <div id="turnPanel" class="info-panel"> <div id="turnProgress"></div> <div id="turnLabel" style="white-space: pre;">Current turn: 1 (5s)</div> </div> <div id="infoPanel" class="info-panel"> <p>Zoom: <span id="zoomIndicator">0.4</span>x</p> <p>Board: <span id="boardIndicator">0, 0</span></p> <p>Position: <span id="tileIndicator">A1</span></p> </div> <div id="deathMenu" closed="true" class="menu"> <h1 style="margin-bottom: 8px;">♟️ BLUNDER</h1> <p>You were killed by another piece.</p> <div class="dual-options"> <input value="Respawn on map" type="button"> <input value="Main menu" type="button"> </div> </div> <div id="mainMenu" class="menu main-menu"> <h1>Anarchy Chess</h1> <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p> <p>Choose a piece</p> <div class="scroll-picker" ontouchmove=" this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX); scroll({ left: +this.scrollLeft, top: 0, behavior: 'smooth' });" onwheel=" scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' });" onclick=" var _a; let target = event.target; if (target == this) return; (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected'); target.setAttribute('selected', String(true)); pieceType = pieceTypes[target.textContent];"> <div selected="">Pawn<img src="Assets/pawn_black.svg"></div> <div>Bishop<img src="Assets/bishop_black.svg"></div> <div>Knight<img src="Assets/knight_black.svg"></div> <div>Rook<img src="Assets/rook_black.svg"></div> <div>Queen<img src="Assets/queen_black.svg"></div> <div>King<img src="Assets/king_black.svg"></div> </div> <div style="flex-grow: 1;"></div> <div>Choose a colour</div> <div style="flex-grow: 1;"></div> <div class="dual-options" onclick=" var _a; let target = event.target; if (target == this) return; (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected'); target.setAttribute('selected', String(true)); pieceColour = Array.prototype.indexOf.call(this.children, event.target);"> <div class="black-white" style="color: white; background-color: black;"> Black <div id="blackBalance"></div> </div> <div selected="" class="black-white" style="color: black; background-color: white;"> White <div id="whiteBalance"></div> </div> </div> <div style="flex-grow: 1;"></div> <input style="width: 40%;" value="Play" type="button" onclick=" mainMenu.style.display = 'none'; selectSpawnLocation();"> <div style="flex-grow: 1;"></div> </div> <div id="spawnMenu" style="display: none;" class="menu spawn-menu"> <h2>Choose your spawn location</h2> <div class="dual-options"> <input id="tokenSpawnButton" value="Continue from last location" type="button" onclick=" let reauthArray = new Uint8Array(37); let token = encoder.encode(localStorage.token); reauthArray[0] = clientPackets.Spawn; for (let i = 0; i < token.length; i++) reauthArray[i + 1] = token[i]; ws.send(reauthArray);"> <input value="Random location" type="button" onclick=" let spawnArray = new Uint8Array(7); spawnArray[0] = clientPackets.Spawn; spawnArray[1] = Math.floor(Math.random() * map.boardsColumns); spawnArray[2] = Math.floor(Math.random() * map.boardsRows); spawnArray[3] = Math.floor(Math.random() * COLUMNS); spawnArray[4] = Math.floor(Math.random() * ROWS); spawnArray[5] = pieceType; spawnArray[6] = pieceColour; ws.send(spawnArray);"> </div> </div> <div id="warningMenu"> <img id="warningMenuBackground" src="https://upload.wikimedia.org/wikipedia/commons/6/66/Chess_gameboard..jpg"> <h1>Anarchy Chess</h1> <h2>⚠️ This game is an early alpha, expect bugs</h2> <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p> <input value="Proceed" type="button" style="width: 300px; align-self: center;" onclick=" warningMenu.animate([ { transform: 'scale(1)' }, { opacity: '1' }, { transform: 'scale(1.1)' }, { opacity: '0' }, ], { duration: 1000, iterations: 1 }); warningMenuBackground.animate([ { transform: 'scale(1)' }, { transform: 'scale(0.9)' }, ], { duration: 1000, iterations: 1 }); window.setTimeout(() => { warningMenu.remove(); }, 600);"> </div> <div id="meTurnPopup">It is now your turn!</div></body><script type=""> let TILE_HEIGHT = localStorage.tileSize || 128;let TILE_WIDTH = localStorage.tileSize || 128;let ROWS = 8;let COLUMNS = 8;let TURN_TIME = 10000;var serverPackets;(function (serverPackets) { serverPackets[serverPackets["Canvases"] = 0] = "Canvases"; serverPackets[serverPackets["Token"] = 1] = "Token"; serverPackets[serverPackets["ColourBalance"] = 2] = "ColourBalance"; serverPackets[serverPackets["Move"] = 3] = "Move"; serverPackets[serverPackets["Spawn"] = 4] = "Spawn"; serverPackets[serverPackets["Chat"] = 5] = "Chat"; serverPackets[serverPackets["PieceKilled"] = 6] = "PieceKilled"; serverPackets[serverPackets["TurnChanged"] = 7] = "TurnChanged"; serverPackets[serverPackets["RejectMove"] = 8] = "RejectMove"; serverPackets[serverPackets["RejectSpawn"] = 9] = "RejectSpawn"; serverPackets[serverPackets["RejectChat"] = 10] = "RejectChat"; serverPackets[serverPackets["RejectToken"] = 11] = "RejectToken"; serverPackets[serverPackets["FriendRequest"] = 12] = "FriendRequest"; serverPackets[serverPackets["FriendAdded"] = 13] = "FriendAdded"; serverPackets[serverPackets["FriendRemoved"] = 14] = "FriendRemoved"; serverPackets[serverPackets["FriendsOnline"] = 15] = "FriendsOnline"; serverPackets[serverPackets["Me"] = 255] = "Me"; })(serverPackets || (serverPackets = {}));var clientPackets;(function (clientPackets) { clientPackets[clientPackets["Spawn"] = 0] = "Spawn"; clientPackets[clientPackets["Move"] = 1] = "Move"; clientPackets[clientPackets["Chat"] = 2] = "Chat"; clientPackets[clientPackets["RequestFriend"] = 3] = "RequestFriend"; clientPackets[clientPackets["AcceptFriend"] = 4] = "AcceptFriend";})(clientPackets || (clientPackets = {}));var pieceTypes;(function (pieceTypes) { pieceTypes[pieceTypes["Bishop"] = 0] = "Bishop"; pieceTypes[pieceTypes["King"] = 1] = "King"; pieceTypes[pieceTypes["Knight"] = 2] = "Knight"; pieceTypes[pieceTypes["Pawn"] = 3] = "Pawn"; pieceTypes[pieceTypes["Queen"] = 4] = "Queen"; pieceTypes[pieceTypes["Rook"] = 5] = "Rook";})(pieceTypes || (pieceTypes = {}));var pieceColours;(function (pieceColours) { pieceColours[pieceColours["Black"] = 0] = "Black"; pieceColours[pieceColours["White"] = 1] = "White";})(pieceColours || (pieceColours = {}));const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";const encoder = new TextEncoder();const decoder = new TextDecoder();</script><script type=""> let ws = null; let map = null;let positionEase = null;let turnTimerInterval = null;let dragging = false;let inputPermitted = true;let zoom = 0.4;let pieceType = pieceTypes.Pawn;let pieceColour = pieceColours.White;let boardColumn = 0;let boardRow = 0;let pieceColumn = 0;let pieceRow = 0;let myTurn = false;let deltaX = 0;let deltaY = 0;let pieceDragging = false; class Map { constructor(boardsColumns, boardsRows, pieceColumns, pieceRows) { this.boardsColumns = boardsColumns; this.boardsRows = boardsRows; this.boards = new Array; for (let x = 0; x < boardsColumns; x++) { this.boards[x] = []; for (let y = 0; y < boardsRows; y++) { this.boards[x][y] = new Board(pieceRows, pieceColumns); } } }}class Board { constructor(pieceColumns, pieceRows) { this.pieceColumns = pieceColumns; this.pieceRows = pieceRows; this.pieces = new Array; for (let x = 0; x < pieceColumns; x++) { this.pieces[x] = new Array; } }}class Piece { constructor(type, colour) { this.type = type; this.colour = colour; }}class BoardLocation { constructor(boardColumn, boardRow, pieceColumn, pieceRow) { this.boardColumn = boardColumn; this.boardRow = boardRow; this.pieceColumn = pieceColumn; this.pieceRow = pieceRow; }}function connect(address) { ws = new WebSocket(address); ws.onmessage = async ({ data }) => { var _a; var _b, _c; data = new DataView(await data.arrayBuffer()); switch (data.getUint8(0)) { case serverPackets.Canvases: { let boardsColumns = data.getUint8(1), boardsRows = data.getUint8(2), pieceColumns = data.getUint8(3), pieceRows = data.getUint8(4); COLUMNS = pieceColumns; ROWS = pieceRows; board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px"; board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px"; map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns); let pieceArray = data.buffer.slice(5); for (let i = 0; i < pieceArray.length; i += 6) { let mapColumn, mapRow, boardColumn, boardRow, type, colour; [mapColumn, mapRow, boardColumn, boardRow, type, colour] = pieceArray.slice(i, i + 6); map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = new Piece(type, colour); } createAllCanvases(); break; } case serverPackets.Token: { let token = decoder.decode(data.buffer.slice(1)); localStorage.token = token; break; } case serverPackets.RejectToken: { localStorage.removeItem("token"); selectSpawnLocation(); break; } case serverPackets.ColourBalance: { let whiteRatio = data.getUint32(1) / (data.getUint32(1) + data.getUint32(5)); let blackRatio = 1 - whiteRatio; whiteBalance.style.width = "calc(" + String(whiteRatio * 100) + "% + 4px)"; blackBalance.style.width = "calc(" + String(blackRatio * 100) + "% + 4px)"; break; } case serverPackets.Move: { let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf(); let previousCanvas = document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`); let canvas = document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`); map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null; drawCheckeredBackground(previousCanvas); drawPieces(previousCanvas); if (data.getUint8(9) == serverPackets.Me) { boardColumn = data.getUint8(5); boardRow = data.getUint8(6); pieceColumn = data.getUint8(7); pieceRow = data.getUint8(8); map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = previous; setPosition(boardColumn, boardRow, pieceColumn, pieceRow); drawCheckeredBackground(canvas); drawPieces(canvas); break; } const ctx = canvas.getContext("2d", { alpha: false }); const path = new Image(); path.src = "Assets/" + pieceTypes[previous.type].toLowerCase() + "_" + pieceColours[previous.colour].toLowerCase() + ".svg"; path.onload = () => { let current = 0; const repeats = 50; let moveEase = setInterval(() => { let ease = easeOutCubic(current / repeats); let dispX = data.getUint8(3) + (data.getUint8(7) - data.getUint8(3)) * ease; let dispY = data.getUint8(4) + (data.getUint8(8) - data.getUint8(4)) * ease; ctx.drawImage(path, dispX * TILE_WIDTH, dispY * TILE_HEIGHT); drawCheckeredBackground(previousCanvas); drawPieces(previousCanvas); drawCheckeredBackground(canvas); drawPieces(canvas); current++; if (current >= repeats) { map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous; clearInterval(moveEase); } }, 16); }; break; } case serverPackets.TurnChanged: { myTurn = data.getUint8(7) == serverPackets.Me; let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`); const ctx = canvas.getContext("2d", { alpha: true }); if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) { startTurnTimer(data.getUint16(1)); drawCheckeredBackground(canvas); drawPieces(canvas); let x = data.getUint8(5) * TILE_WIDTH; let y = data.getUint8(6) * TILE_HEIGHT; ctx.save(); ctx.strokeStyle = "#FFCD0473"; ctx.lineWidth = 8; ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT); ctx.restore(); } break; } case serverPackets.PieceKilled: { let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf(); map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null; addChatMessage(`💀 ${pieceTypes[previous.type]} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent"); if (data.getUint8(5) == serverPackets.Me) { deathMenu.removeAttribute("closed"); inputPermitted = false; setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0); } break; } case serverPackets.Spawn: { let piece = new Piece(data.getUint8(5), data.getUint8(6)); if (data.getUint8(7) == serverPackets.Me) { piece.me = true; boardColumn = data.getUint8(1); boardRow = data.getUint8(2); pieceColumn = data.getUint8(3); pieceRow = data.getUint8(4); setZoom(1); setPosition(boardColumn, boardRow, pieceColumn, pieceRow); window.setTimeout(() => { inputPermitted = true; }, 100); spawnMenu.animate([ { opactiy: '0' }, { top: '-10%' }, ], { duration: 200, iterations: 1 }); window.setTimeout(() => spawnMenu.style.display = "none", 200); } addChatMessage(`✨ ${pieceTypes[piece.type]} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent"); (_a = (_b = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)])[_c = data.getUint8(4)]) !== null && _a !== void 0 ? _a : (_b[_c] = piece); drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`)); break; } case serverPackets.RejectSpawn: { console.error("Spawn rejected"); selectSpawnLocation(); break; } case serverPackets.RejectMove: { console.error("Move rejected"); drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)); break; } case serverPackets.Chat: { addChatMessage(decoder.decode(data.buffer.slice(1))); break; } case serverPackets.FriendRequest: break; case serverPackets.FriendAdded: break; case serverPackets.FriendRemoved: break; case serverPackets.FriendsOnline: break; } }; ws.onclose = (event) => { console.error(event); setTimeout(() => { connect(localStorage.address || "wss://server.poemanthology.org:8083"); }, 1000); };}function addChatMessage(message, event = null) { let el = document.createElement("span"); el.textContent = event ? message : ">> " + message; if (event) el.setAttribute(event, String(true)); chatMessages.appendChild(el); chatMessages.appendChild(document.createElement("br")); chatMessages.scrollTo(0, chatMessages.scrollHeight); if (chatMessages.childElementCount > 100) { chatMessages.removeChild(chatMessages.firstElementChild); }}function sendChatMessage(message) { let encoded = encoder.encode("0" + message); encoded[0] = clientPackets.Chat; ws === null || ws === void 0 ? void 0 : ws.send(encoded);}function createAllCanvases() { for (let mapX = 0; mapX < map.boardsColumns; mapX++) { for (let mapY = 0; mapY < map.boardsRows; mapY++) { let el = document.createElement("canvas"); el.width = TILE_WIDTH * COLUMNS; el.height = TILE_HEIGHT * ROWS; el.style.left = (el.width * mapX) + "px"; el.style.top = (el.width * mapY) + "px"; el.setAttribute("column", String(mapX)); el.setAttribute("row", String(mapY)); board.appendChild(el); drawCheckeredBackground(el); drawPieces(el); el.addEventListener("mousedown", onCanvasMouseDown); el.addEventListener("mousemove", onCanvasMouseDrag); el.addEventListener("mouseup", onCanvasMouseUp); } }}function removeAllCanvases() { board.querySelectorAll("canvas").forEach(canvas => { board.removeChild(canvas); });} function getOffsetCanvas(canvas, tileColumn, tileRow) { while (tileColumn < 0) { canvas = board.querySelector(`[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`); if (canvas == null) return; tileColumn = COLUMNS - Math.abs(tileColumn); } while (tileRow < 0) { canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") - 1}"]`); if (canvas == null) return; tileRow = ROWS - Math.abs(tileRow); } while (tileColumn > COLUMNS - 1) { canvas = board.querySelector(`[column="${+canvas.getAttribute("column") + 1}"][row="${canvas.getAttribute("row")}"]`); if (canvas == null) return; tileColumn -= COLUMNS; } while (tileRow > ROWS - 1) { canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") + 1}"]`); if (canvas == null) return; tileRow -= ROWS; } return [canvas, tileColumn, tileRow];}function fillTile(canvas, tileColumn, tileRow, special = false) { let offset = getOffsetCanvas(canvas, tileColumn, tileRow); if (offset == null) return; [canvas, tileColumn, tileRow] = offset; if (offset == null) { return; } const ctx = canvas.getContext("2d", { alpha: false }); ctx.save(); ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85"; ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT); ctx.restore();}function drawValidMoves(canvas, column, row, type, colour) { }function getValidMoves(canvas, column, row, type) { let validMoves = new Array; switch (type) { case pieceTypes.Bishop: break; case pieceTypes.King: { for (let x = column - 1; x <= column + 1; x++) { for (let y = row - 1; y <= row + 1; y++) { let offset = getOffsetCanvas(canvas, x, y); if ((x == column && y == row) || offset == null) continue; validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } } break; } case pieceTypes.Knight: { let offsets = [ getOffsetCanvas(canvas, column + 1, row + 2), getOffsetCanvas(canvas, column + 2, row + 1), getOffsetCanvas(canvas, column + 2, row - 1), getOffsetCanvas(canvas, column + 1, row - 2), getOffsetCanvas(canvas, column - 1, row - 2), getOffsetCanvas(canvas, column - 2, row - 1), getOffsetCanvas(canvas, column - 2, row + 1), getOffsetCanvas(canvas, column - 1, row + 2) ]; for (let i = 0; i < offsets.length; i++) { if (offsets[i] == null) continue; validMoves.push(new BoardLocation(Number(offsets[i][0].getAttribute("column")), Number(offsets[i][0].getAttribute("row")), offsets[i][1], offsets[i][2])); } break; } case pieceTypes.Pawn: { let offset = getOffsetCanvas(canvas, column - 1, row - 1); let pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces; if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] - 1] != null)) { validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } offset = getOffsetCanvas(canvas, column - 1, row + 1); pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces; if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] + 1] != null)) { validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } offset = getOffsetCanvas(canvas, column, row - 1); pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces; if (offset != null && (pieces[offset[1] - 1] == null)) { validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } break; } case pieceTypes.Queen: break; case pieceTypes.Rook: { for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) { let offset = getOffsetCanvas(canvas, x, row); if (x == column || offset == null) continue; validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } for (let y = -ROWS + row; y < ROWS + row + 1; y++) { let offset = getOffsetCanvas(canvas, column, y); if (y == row || offset == null) continue; validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2])); } break; } }}function selectSpawnLocation() { inputPermitted = false; setZoom(0.2); setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0); spawnMenu.style.display = "flex"; tokenSpawnButton.style.display = localStorage.token ? "block" : "none"; function canvasMouseMove(event) { let canvas = event.target; let tileOverX = Math.floor(event.offsetX / TILE_WIDTH); let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT); drawCheckeredBackground(canvas); drawPieces(canvas); fillTile(canvas, tileOverX, tileOverY); } function canvasMouseLeave(event) { drawCheckeredBackground(event.target); drawPieces(event.target); } function canvasMouseUp(event) { let canvas = event.target; let tileOverX = Math.floor(event.offsetX / TILE_WIDTH); let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT); board.querySelectorAll("canvas").forEach(canvas => { canvas.removeEventListener("mousemove", canvasMouseMove); canvas.removeEventListener("mouseleave", canvasMouseLeave); canvas.removeEventListener("mouseup", canvasMouseUp); }); drawCheckeredBackground(canvas); drawPieces(canvas); let spawnArray = new Uint8Array(7); spawnArray[0] = clientPackets.Spawn; spawnArray[1] = +canvas.getAttribute("column"); spawnArray[2] = +canvas.getAttribute("row"); spawnArray[3] = tileOverX; spawnArray[4] = tileOverY; spawnArray[5] = pieceType; spawnArray[6] = pieceColour; ws === null || ws === void 0 ? void 0 : ws.send(spawnArray); } board.querySelectorAll("canvas").forEach(canvas => { canvas.addEventListener("mousemove", canvasMouseMove); canvas.addEventListener("mouseleave", canvasMouseLeave); canvas.addEventListener("mouseup", canvasMouseUp); });}function drawPieces(canvas) { const ctx = canvas.getContext("2d", { alpha: false }); const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")]; ctx.save(); ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)"; for (let x = 0; x < COLUMNS; x++) { for (let y = 0; y < ROWS; y++) { let piece = virtualBoard.pieces[x][y]; if (piece == null) continue; let path = new Image(); path.src = "Assets/" + pieceTypes[piece.type].toLowerCase() + "_" + pieceColours[pieceColour].toLowerCase() + ".svg"; path.onload = () => ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT); } } ctx.restore();}function startTurnTimer(turn) { if (turnTimerInterval != null) clearInterval(turnTimerInterval); if (myTurn) { meTurnPopup.style.display = "block"; meTurnPopup.animate([ { transform: 'scale(0)' }, { opacity: '0' }, { transform: 'scale(1)' }, { opacity: '1' }, ], { duration: 400, iterations: 1 }); setTimeout(() => { meTurnPopup.style.display = "none"; }, 2000); } const updateInterval = 100; const iMax = TURN_TIME / updateInterval; let i = 0; turnProgress.style.transitionDuration = (TURN_TIME / iMax) + "ms"; turnTimerInterval = setInterval(() => { if (i >= iMax && turnTimerInterval != null) clearInterval(turnTimerInterval); turnLabel.innerText = `Current turn: ${String(turn)} (${String(Math.floor((i * updateInterval) / 1000))}s)`; turnProgress.style.width = `calc(${i / iMax * 100}% - 16px)`; turnProgress.style.backgroundPositionX = (iMax - i) * 0.5 + "px"; i++; }, updateInterval);}function drawCheckeredBackground(canvas) { const ctx = canvas.getContext("2d", { alpha: false }); ctx.save(); ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); let shift = false; for (let row = 0; row < ROWS; row++) { for (let column = 0; column < COLUMNS; column++) { if (column % 2 != 0) continue; let x = (column + Number(shift)) * TILE_WIDTH; let y = row * TILE_HEIGHT; if (TILE_HEIGHT > 64 && TILE_WIDTH > 64) { let gradientBlack = ctx.createLinearGradient(x, y, x + TILE_WIDTH, y + TILE_HEIGHT); gradientBlack.addColorStop(0, "#3C3C3C"); gradientBlack.addColorStop(1, "black"); ctx.fillStyle = gradientBlack; } else { ctx.fillStyle = "black"; } ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT); } shift = !shift; } ctx.restore();}function easeOutCubic(progress) { return 1 - Math.pow(1 - progress, 3);} function setPosition(boardColumn, boardRow, tileColumn, tileRow) { let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2; let finalLeft = (centreX - ((boardColumn * TILE_WIDTH * COLUMNS) + (tileColumn * TILE_WIDTH)) * zoom); let finalTop = (centreY - ((boardRow * TILE_HEIGHT * ROWS) + (tileRow * TILE_HEIGHT)) * zoom); let initialLeft = board.offsetLeft; let initialTop = board.offsetTop; let current = 0; const repeats = 50; positionEase = setInterval(() => { let ease = easeOutCubic(current / repeats); board.style.left = (ease * (finalLeft - initialLeft) + initialLeft) + "px"; board.style.top = (ease * (finalTop - initialTop) + initialTop) + "px"; current++; if (current >= repeats) clearInterval(positionEase); }, 16);} function setZoom(zoomLevel) { let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2; zoom = zoomLevel; zoomIndicator.textContent = String(Math.round(zoom * 100) / 100); board.style.transform = `scale(${zoom})`;}function onDragBody(event) { let canvas = event.target; if (!dragging || !inputPermitted) return; if (event.target != document.body && !board.contains(canvas)) return; document.body.style.cursor = "default"; clearInterval(positionEase); let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2; board.style.left = Math.max(centreX - board.offsetWidth * zoom, Math.min(centreX, board.offsetLeft + event.movementX)) + "px"; board.style.top = Math.max(centreY - board.offsetHeight * zoom, Math.min(centreY, board.offsetTop + event.movementY)) + "px";}function onWheelBody(event) { let canvas = event.target; if (event.target != document.body && !board.contains(canvas) || !inputPermitted) return; setZoom(Math.min(Math.max(event.deltaY < 0 ? zoom + 0.1 : zoom - 0.1, 0.2), 1));}function onCanvasMouseDown(event) { let canvas = event.target; let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH); let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT); tileIndicator.textContent = toAlphabetCoordinate(tileClickedX, tileClickedY).join(", "); boardIndicator.textContent = `${+canvas.getAttribute("column") + 1}, ${+canvas.getAttribute("row") + 1}`; let piece = map.boards[+canvas.getAttribute("column")][canvas.getAttribute("row")] .pieces[tileClickedX][tileClickedY]; if (piece == null) return; event.stopPropagation(); if (piece.me) { document.body.style.cursor = "grab"; pieceDragging = true; }}function toAlphabetCoordinate(x, y) { return [(x < 26 ? ALPHABET[x] : x), String(y)];}function onCanvasMouseDrag(event) { if (!pieceDragging || !inputPermitted) { document.body.style.cursor = "default"; return; } let canvas = event.target; let tileDragX = (event.offsetX / TILE_WIDTH) - 0.5; let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5; let offset = getOffsetCanvas(canvas, tileDragX, tileDragY); if (offset == null) { return; } [canvas, tileDragX, tileDragY] = offset; const ctx = canvas.getContext("2d", { alpha: false }); const path = new Image(); path.src = "Assets/" + pieceTypes[pieceType].toLowerCase() + "_" + pieceColours[pieceColour].toLowerCase() + ".svg"; path.onload = () => { drawCheckeredBackground(canvas); drawPieces(canvas); ctx.save(); ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D"; ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, 16, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT, 16, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8); ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8); ctx.restore(); ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT); }; deltaX = (tileDragX + (Number(canvas.getAttribute("column")) * COLUMNS)) - (pieceColumn + (boardColumn * COLUMNS)); deltaY = (tileDragY + (Number(canvas.getAttribute("row")) * ROWS)) - (pieceRow + (boardRow * ROWS));}function onCanvasMouseUp(event) { pieceDragging = false; let canvas = event.target; let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH); let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT); let piece = map.boards[Number(canvas.getAttribute("column"))][Number(canvas.getAttribute("row"))] .pieces[tileClickedX][tileClickedY]; if (piece != null) { drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type, piece.colour); event.stopPropagation(); } else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) { deltaX = 0; deltaY = 0; let moveArray = new Uint8Array(5); moveArray[0] = clientPackets.Move; moveArray[1] = Number(canvas.getAttribute("column")); moveArray[2] = Number(canvas.getAttribute("row")); moveArray[3] = tileClickedX; moveArray[4] = tileClickedY; ws.send(moveArray); }}connect(localStorage.address || "wss://server.poemanthology.org:8083");</script></html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anarchy Chess</title>
+    <meta name="description" content="A massive multiplayer chess board with slightly bent rules. Here be anarchy.">
+    <meta name="keywords" content="chess anarchy game multiplayer online">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body onmousedown="
+    dragging = true;
+" onmousemove="
+    onDragBody(event);
+" onwheel="
+    onWheelBody(event);
+" onmouseup="
+    dragging = false;
+">
+    
+    <p class="copyright-notice">
+        If you're seeing this, you probably moved the board offscreen. ©Anarchy Chess, Zekiah-A
+    </p>
+
+    <div id="board">
+        <!-- Parent element that contains all canvases -->
+    </div>
+
+    <div class="hud game-title">
+        <p>Anarchy Chess</p>
+    </div>
+
+    <!--TODO: Use toggleAttribute instead-->
+    <div class="hud game-actions">
+        <p onclick="
+    chatPanel.toggleAttribute('closed');
+">Chat</p>
+        <p onclick="
+    settingsPanel.toggleAttribute('closed');
+">Settings</p>
+        <p>Help</p>
+    </div>
+
+    <div id="chatPanel" closed="true" class="info-panel">
+        <div id="chatMessages">
+            <span>>> Chat messages will appear here</span>
+        </div>
+        <input type="text" maxlength="250" onkeydown="
+    if (event.key == 'Enter') {
+        let input = this;
+        sendChatMessage(input.value);
+        input.value = '';
+    }
+">
+    </div>
+
+    <div id="settingsPanel" closed="true" class="info-panel">
+        <h4>Graphics options:</h4>
+        <div style="display: flex;flex-direction: column;row-gap: 3px;" onclick="
+    let childIndex = Array.prototype.indexOf.call(this.children, event.target);
+    if (childIndex == -1)
+        return;
+    let tileSize = [64, 128, 256][childIndex];
+    TILE_HEIGHT = tileSize;
+    TILE_WIDTH = tileSize;
+    board.style.width = (COLUMNS * TILE_WIDTH * map.boardsColumns) + 'px';
+    board.style.height = (ROWS * TILE_HEIGHT * map.boardsRows) + 'px';
+    localStorage.tileSize = tileSize;
+    removeAllCanvases();
+    createAllCanvases();
+">
+            <input type="button" value="Low graphics">
+            <input type="button" value="Medium graphics">
+            <input type="button" value="High graphics">
+        </div>
+    </div>
+
+    <div id="turnPanel" class="info-panel">
+        <div id="turnProgress"></div>
+        <div id="turnLabel" style="white-space: pre;">Current turn: 1             (5s)</div>
+    </div>
+    
+    <div id="infoPanel" class="info-panel">
+        <p>Zoom: <span id="zoomIndicator">0.4</span>x</p>
+        <p>Board: <span id="boardIndicator">0, 0</span></p>
+        <p>Position: <span id="tileIndicator">A1</span></p>
+    </div>
+
+    <div id="deathMenu" closed="true" class="menu">
+        <h1 style="margin-bottom: 8px;">♟️ BLUNDER</h1>
+        <p>You were killed by another piece.</p>
+        <div class="dual-options">
+            <input value="Respawn on map" type="button">
+            <input value="Main menu" type="button">
+        </div>
+    </div>
+    
+    <div id="mainMenu" class="menu main-menu">
+        <h1>Anarchy Chess</h1>
+        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+        <p>Choose a piece</p>
+        <div class="scroll-picker" ontouchmove="
+    this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX);
+    scroll({ left: +this.scrollLeft, top: 0, behavior: 'smooth' });
+" onwheel="
+    scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' });
+" onclick="
+    var _a;
+    let target = event.target;
+    if (target == this)
+        return;
+    (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected');
+    target.setAttribute('selected', String(true));
+    pieceType = pieceTypes[target.textContent];
+">
+            <div selected="">Pawn<img src="Assets/pawn_black.svg"></div>
+            <div>Bishop<img src="Assets/bishop_black.svg"></div>
+            <div>Knight<img src="Assets/knight_black.svg"></div>
+            <div>Rook<img src="Assets/rook_black.svg"></div>
+            <div>Queen<img src="Assets/queen_black.svg"></div>
+            <div>King<img src="Assets/king_black.svg"></div>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <div>Choose a colour</div>
+        <div style="flex-grow: 1;"></div>
+        <div class="dual-options" onclick="
+    var _a;
+    let target = event.target;
+    if (target == this)
+        return;
+    (_a = this.querySelector('[selected]')) === null || _a === void 0 ? void 0 : _a.removeAttribute('selected');
+    target.setAttribute('selected', String(true));
+    pieceColour = Array.prototype.indexOf.call(this.children, event.target);
+">
+            <div class="black-white" style="color: white; background-color: black;">
+                Black
+                <div id="blackBalance"></div>
+            </div>
+            <div selected="" class="black-white" style="color: black; background-color: white;">
+                White
+                <div id="whiteBalance"></div>
+            </div>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <input style="width: 40%;" value="Play" type="button" onclick="
+    mainMenu.style.display = 'none';
+    selectSpawnLocation();
+">
+        <div style="flex-grow: 1;"></div>
+    </div>
+
+    <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
+        <h2>Choose your spawn location</h2>
+        <div class="dual-options">
+            <input id="tokenSpawnButton" value="Continue from last location" type="button" onclick="
+    let reauthArray = new Uint8Array(37);
+    let token = encoder.encode(localStorage.token);
+    reauthArray[0] = clientPackets.Spawn;
+    for (let i = 0; i < token.length; i++)
+        reauthArray[i + 1] = token[i];
+    ws.send(reauthArray);
+">
+            <input value="Random location" type="button" onclick="
+    let spawnArray = new Uint8Array(7);
+    spawnArray[0] = clientPackets.Spawn;
+    spawnArray[1] = Math.floor(Math.random() * map.boardsColumns);
+    spawnArray[2] = Math.floor(Math.random() * map.boardsRows);
+    spawnArray[3] = Math.floor(Math.random() * COLUMNS);
+    spawnArray[4] = Math.floor(Math.random() * ROWS);
+    spawnArray[5] = pieceType;
+    spawnArray[6] = pieceColour;
+    ws.send(spawnArray);
+">
+        </div>
+    </div>
+
+    <div id="warningMenu">
+        <img id="warningMenuBackground" src="https://upload.wikimedia.org/wikipedia/commons/6/66/Chess_gameboard..jpg">
+        <h1>Anarchy Chess</h1>
+        <h2>⚠️ This game is an early alpha, expect bugs</h2>
+        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+        <input value="Proceed" type="button" style="width: 300px; align-self: center;" onclick="
+    warningMenu.animate([
+        { transform: 'scale(1)' },
+        { opacity: '1' },
+        { transform: 'scale(1.1)' },
+        { opacity: '0' },
+    ], {
+        duration: 1000,
+        iterations: 1
+    });
+    warningMenuBackground.animate([
+        { transform: 'scale(1)' },
+        { transform: 'scale(0.9)' },
+    ], {
+        duration: 1000,
+        iterations: 1
+    });
+    window.setTimeout(() => { warningMenu.remove(); }, 600);
+">
+    </div>
+
+    <div id="meTurnPopup">It is now your turn!</div>
+</body>
+<script type="">
+
+// Board width = tile width * columns
+let TILE_HEIGHT = localStorage.tileSize || 128;
+let TILE_WIDTH = localStorage.tileSize || 128;
+let ROWS = 8;
+let COLUMNS = 8;
+let TURN_TIME = 10000;
+var serverPackets;
+(function (serverPackets) {
+    // Info sent only to the player
+    serverPackets[serverPackets["Canvases"] = 0] = "Canvases";
+    serverPackets[serverPackets["Token"] = 1] = "Token";
+    serverPackets[serverPackets["ColourBalance"] = 2] = "ColourBalance";
+    // Relayed information from other clients
+    serverPackets[serverPackets["Move"] = 3] = "Move";
+    serverPackets[serverPackets["Spawn"] = 4] = "Spawn";
+    serverPackets[serverPackets["Chat"] = 5] = "Chat";
+    serverPackets[serverPackets["PieceKilled"] = 6] = "PieceKilled";
+    serverPackets[serverPackets["TurnChanged"] = 7] = "TurnChanged";
+    // Actions and responses
+    serverPackets[serverPackets["RejectMove"] = 8] = "RejectMove";
+    serverPackets[serverPackets["RejectSpawn"] = 9] = "RejectSpawn";
+    serverPackets[serverPackets["RejectChat"] = 10] = "RejectChat";
+    serverPackets[serverPackets["RejectToken"] = 11] = "RejectToken";
+    serverPackets[serverPackets["FriendRequest"] = 12] = "FriendRequest";
+    serverPackets[serverPackets["FriendAdded"] = 13] = "FriendAdded";
+    serverPackets[serverPackets["FriendRemoved"] = 14] = "FriendRemoved";
+    serverPackets[serverPackets["FriendsOnline"] = 15] = "FriendsOnline";
+    serverPackets[serverPackets["Me"] = 255] = "Me"; // Confirms to a client that an acton originated from them
+})(serverPackets || (serverPackets = {}));
+var clientPackets;
+(function (clientPackets) {
+    clientPackets[clientPackets["Spawn"] = 0] = "Spawn";
+    clientPackets[clientPackets["Move"] = 1] = "Move";
+    clientPackets[clientPackets["Chat"] = 2] = "Chat";
+    clientPackets[clientPackets["RequestFriend"] = 3] = "RequestFriend";
+    clientPackets[clientPackets["AcceptFriend"] = 4] = "AcceptFriend";
+})(clientPackets || (clientPackets = {}));
+var pieceTypes;
+(function (pieceTypes) {
+    pieceTypes[pieceTypes["Bishop"] = 0] = "Bishop";
+    pieceTypes[pieceTypes["King"] = 1] = "King";
+    pieceTypes[pieceTypes["Knight"] = 2] = "Knight";
+    pieceTypes[pieceTypes["Pawn"] = 3] = "Pawn";
+    pieceTypes[pieceTypes["Queen"] = 4] = "Queen";
+    pieceTypes[pieceTypes["Rook"] = 5] = "Rook";
+})(pieceTypes || (pieceTypes = {}));
+var pieceColours;
+(function (pieceColours) {
+    pieceColours[pieceColours["Black"] = 0] = "Black";
+    pieceColours[pieceColours["White"] = 1] = "White";
+})(pieceColours || (pieceColours = {}));
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+</script>
+<script type="">
+// HACK: type="" inhibits vscode JS debugger from running
+let ws = null;
+//@ts-ignore
+let map = null;
+let positionEase = null;
+let turnTimerInterval = null;
+let dragging = false;
+let inputPermitted = true;
+let zoom = 0.4;
+let pieceType = pieceTypes.Pawn;
+let pieceColour = pieceColours.White;
+let boardColumn = 0;
+let boardRow = 0;
+let pieceColumn = 0;
+let pieceRow = 0;
+let myTurn = false;
+let deltaX = 0;
+let deltaY = 0;
+let pieceDragging = false;
+//@ts-ignore
+class Map {
+    constructor(boardsColumns, boardsRows, pieceColumns, pieceRows) {
+        this.boardsColumns = boardsColumns;
+        this.boardsRows = boardsRows;
+        this.boards = new Array;
+        // Fill board array
+        for (let x = 0; x < boardsColumns; x++) {
+            this.boards[x] = [];
+            for (let y = 0; y < boardsRows; y++) {
+                this.boards[x][y] = new Board(pieceRows, pieceColumns);
+            }
+        }
+    }
+}
+class Board {
+    constructor(pieceColumns, pieceRows) {
+        this.pieceColumns = pieceColumns;
+        this.pieceRows = pieceRows;
+        this.pieces = new Array;
+        for (let x = 0; x < pieceColumns; x++) {
+            this.pieces[x] = new Array;
+        }
+    }
+}
+class Piece {
+    constructor(type, colour) {
+        this.type = type;
+        this.colour = colour;
+    }
+}
+class BoardLocation {
+    constructor(boardColumn, boardRow, pieceColumn, pieceRow) {
+        this.boardColumn = boardColumn;
+        this.boardRow = boardRow;
+        this.pieceColumn = pieceColumn;
+        this.pieceRow = pieceRow;
+    }
+}
+function connect(address) {
+    ws = new WebSocket(address);
+    ws.onmessage = async ({ data }) => {
+        var _a;
+        var _b, _c;
+        data = new DataView(await data.arrayBuffer());
+        switch (data.getUint8(0)) {
+            case serverPackets.Canvases: {
+                let boardsColumns = data.getUint8(1), boardsRows = data.getUint8(2), pieceColumns = data.getUint8(3), pieceRows = data.getUint8(4);
+                COLUMNS = pieceColumns;
+                ROWS = pieceRows;
+                board.style.width = (COLUMNS * TILE_WIDTH * boardsColumns) + "px";
+                board.style.height = (ROWS * TILE_HEIGHT * boardsRows) + "px";
+                //@ts-ignore
+                map = new Map(boardsRows, boardsColumns, pieceRows, pieceColumns);
+                let pieceArray = data.buffer.slice(5);
+                for (let i = 0; i < pieceArray.length; i += 6) {
+                    let mapColumn, mapRow, boardColumn, boardRow, type, colour;
+                    [mapColumn, mapRow, boardColumn, boardRow, type, colour] = pieceArray.slice(i, i + 6);
+                    map.boards[mapColumn][mapRow].pieces[boardColumn][boardRow] = new Piece(type, colour);
+                }
+                createAllCanvases();
+                break;
+            }
+            case serverPackets.Token: {
+                let token = decoder.decode(data.buffer.slice(1));
+                localStorage.token = token;
+                break;
+            }
+            case serverPackets.RejectToken: {
+                localStorage.removeItem("token");
+                selectSpawnLocation();
+                break;
+            }
+            case serverPackets.ColourBalance: {
+                let whiteRatio = data.getUint32(1) / (data.getUint32(1) + data.getUint32(5));
+                let blackRatio = 1 - whiteRatio;
+                whiteBalance.style.width = "calc(" + String(whiteRatio * 100) + "% + 4px)";
+                blackBalance.style.width = "calc(" + String(blackRatio * 100) + "% + 4px)";
+                break;
+            }
+            case serverPackets.Move: {
+                let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf();
+                let previousCanvas = document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`);
+                let canvas = document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`);
+                // We "remove" the piece from the board until we have animated it's dummy representation to the new position
+                map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null;
+                drawCheckeredBackground(previousCanvas);
+                drawPieces(previousCanvas);
+                if (data.getUint8(9) == serverPackets.Me) {
+                    boardColumn = data.getUint8(5);
+                    boardRow = data.getUint8(6);
+                    pieceColumn = data.getUint8(7);
+                    pieceRow = data.getUint8(8);
+                    map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = previous;
+                    //why is barray end same as start
+                    setPosition(boardColumn, boardRow, pieceColumn, pieceRow);
+                    drawCheckeredBackground(canvas);
+                    drawPieces(canvas);
+                    break;
+                }
+                const ctx = canvas.getContext("2d", { alpha: false });
+                const path = new Image();
+                path.src = "Assets/" + pieceTypes[previous.type].toLowerCase()
+                    + "_" + pieceColours[previous.colour].toLowerCase() + ".svg";
+                path.onload = () => {
+                    // Ease piece move from original spot to new
+                    let current = 0;
+                    const repeats = 50;
+                    let moveEase = setInterval(() => {
+                        let ease = easeOutCubic(current / repeats);
+                        let dispX = data.getUint8(3) + (data.getUint8(7) - data.getUint8(3)) * ease;
+                        let dispY = data.getUint8(4) + (data.getUint8(8) - data.getUint8(4)) * ease;
+                        // Ease on X, for example would be original X + ((newX - originalX) * ease) 
+                        ctx.drawImage(path, dispX * TILE_WIDTH, dispY * TILE_HEIGHT);
+                        drawCheckeredBackground(previousCanvas);
+                        drawPieces(previousCanvas);
+                        drawCheckeredBackground(canvas);
+                        drawPieces(canvas);
+                        current++;
+                        if (current >= repeats) {
+                            // We finally "finish" the move, and commit transferring the piece
+                            map.boards[data.getUint8(5)][data.getUint8(6)].pieces[data.getUint8(7)][data.getUint8(8)] = previous;
+                            clearInterval(moveEase);
+                        }
+                    }, 16);
+                };
+                break;
+            }
+            case serverPackets.TurnChanged: {
+                // Uint16 turn number (max 255*255 because of max single board size), bytes (6) position
+                myTurn = data.getUint8(7) == serverPackets.Me;
+                let canvas = document.querySelector(`[column="${data.getUint8(3)}"][row="${data.getUint8(4)}"]`);
+                const ctx = canvas.getContext("2d", { alpha: true });
+                // Only show turn timer if we are on the same board as turn switch packet - TODO: Move this to serverside
+                if (data.getUint8(3) == boardColumn && data.getUint8(4) == boardRow) {
+                    startTurnTimer(data.getUint16(1));
+                    drawCheckeredBackground(canvas);
+                    drawPieces(canvas);
+                    let x = data.getUint8(5) * TILE_WIDTH;
+                    let y = data.getUint8(6) * TILE_HEIGHT;
+                    ctx.save();
+                    ctx.strokeStyle = "#FFCD0473";
+                    ctx.lineWidth = 8;
+                    ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT);
+                    ctx.restore();
+                }
+                break;
+            }
+            case serverPackets.PieceKilled: {
+                //TODO: Death animation?
+                let previous = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf();
+                map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null;
+                addChatMessage(`💀 ${pieceTypes[previous.type]} killed at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent");
+                if (data.getUint8(5) == serverPackets.Me) {
+                    deathMenu.removeAttribute("closed");
+                    inputPermitted = false;
+                    setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0);
+                }
+                break;
+            }
+            case serverPackets.Spawn: {
+                // boardColumn, boardRow, pieceColumn, pieceRow, type, colour
+                //      1          2           3           4       5     6
+                let piece = new Piece(data.getUint8(5), data.getUint8(6));
+                // If the piece coming in was from us
+                if (data.getUint8(7) == serverPackets.Me) {
+                    piece.me = true;
+                    boardColumn = data.getUint8(1);
+                    boardRow = data.getUint8(2);
+                    pieceColumn = data.getUint8(3);
+                    pieceRow = data.getUint8(4);
+                    setZoom(1);
+                    setPosition(boardColumn, boardRow, pieceColumn, pieceRow);
+                    window.setTimeout(() => {
+                        inputPermitted = true;
+                    }, 100);
+                    spawnMenu.animate([
+                        { opactiy: '0' },
+                        { top: '-10%' },
+                    ], {
+                        duration: 200,
+                        iterations: 1
+                    });
+                    window.setTimeout(() => spawnMenu.style.display = "none", 200);
+                }
+                addChatMessage(`✨ ${pieceTypes[piece.type]} spawned at (${data.getUint8(1)}, ${data.getUint8(2)}) ${toAlphabetCoordinate(data.getUint8(3), data.getUint8(4)).join("")})`, "deathevent");
+                (_a = (_b = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)])[_c = data.getUint8(4)]) !== null && _a !== void 0 ? _a : (_b[_c] = piece);
+                drawPieces(document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`));
+                break;
+            }
+            case serverPackets.RejectSpawn: {
+                console.error("Spawn rejected");
+                selectSpawnLocation();
+                break;
+            }
+            case serverPackets.RejectMove: {
+                console.error("Move rejected");
+                drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`));
+                break;
+            }
+            case serverPackets.Chat: {
+                addChatMessage(decoder.decode(data.buffer.slice(1)));
+                break;
+            }
+            case serverPackets.FriendRequest:
+                break;
+            case serverPackets.FriendAdded:
+                break;
+            case serverPackets.FriendRemoved:
+                break;
+            case serverPackets.FriendsOnline:
+                break;
+        }
+    };
+    ws.onclose = (event) => {
+        console.error(event);
+        setTimeout(() => {
+            connect(localStorage.address || "wss://server.poemanthology.org:8083");
+        }, 1000);
+    };
+}
+function addChatMessage(message, event = null) {
+    let el = document.createElement("span");
+    el.textContent = event ? message : ">> " + message;
+    if (event)
+        el.setAttribute(event, String(true));
+    chatMessages.appendChild(el);
+    chatMessages.appendChild(document.createElement("br"));
+    // Limit chat messages from becoming too long and causing issues
+    chatMessages.scrollTo(0, chatMessages.scrollHeight);
+    if (chatMessages.childElementCount > 100) {
+        chatMessages.removeChild(chatMessages.firstElementChild);
+    }
+}
+function sendChatMessage(message) {
+    let encoded = encoder.encode("0" + message);
+    encoded[0] = clientPackets.Chat;
+    ws === null || ws === void 0 ? void 0 : ws.send(encoded);
+}
+function createAllCanvases() {
+    for (let mapX = 0; mapX < map.boardsColumns; mapX++) {
+        for (let mapY = 0; mapY < map.boardsRows; mapY++) {
+            let el = document.createElement("canvas");
+            el.width = TILE_WIDTH * COLUMNS;
+            el.height = TILE_HEIGHT * ROWS;
+            el.style.left = (el.width * mapX) + "px";
+            el.style.top = (el.width * mapY) + "px";
+            el.setAttribute("column", String(mapX));
+            el.setAttribute("row", String(mapY));
+            board.appendChild(el);
+            drawCheckeredBackground(el);
+            drawPieces(el);
+            el.addEventListener("mousedown", onCanvasMouseDown);
+            el.addEventListener("mousemove", onCanvasMouseDrag);
+            el.addEventListener("mouseup", onCanvasMouseUp);
+        }
+    }
+}
+function removeAllCanvases() {
+    board.querySelectorAll("canvas").forEach(canvas => {
+        board.removeChild(canvas);
+    });
+}
+//TODO: Switch to get offset boardLocation!
+function getOffsetCanvas(canvas, tileColumn, tileRow) {
+    // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
+    // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
+    while (tileColumn < 0) {
+        canvas = board.querySelector(`[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`);
+        if (canvas == null)
+            return;
+        tileColumn = COLUMNS - Math.abs(tileColumn);
+    }
+    while (tileRow < 0) {
+        canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") - 1}"]`);
+        if (canvas == null)
+            return;
+        tileRow = ROWS - Math.abs(tileRow);
+    }
+    while (tileColumn > COLUMNS - 1) {
+        canvas = board.querySelector(`[column="${+canvas.getAttribute("column") + 1}"][row="${canvas.getAttribute("row")}"]`);
+        if (canvas == null)
+            return;
+        tileColumn -= COLUMNS;
+    }
+    while (tileRow > ROWS - 1) {
+        canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") + 1}"]`);
+        if (canvas == null)
+            return;
+        tileRow -= ROWS;
+    }
+    return [canvas, tileColumn, tileRow];
+}
+function fillTile(canvas, tileColumn, tileRow, special = false) {
+    let offset = getOffsetCanvas(canvas, tileColumn, tileRow);
+    if (offset == null)
+        return;
+    [canvas, tileColumn, tileRow] = offset;
+    if (offset == null) {
+        return;
+    }
+    // We skip if our shifting resulted in a canvas not even on the board
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.save();
+    ctx.fillStyle = special ? "#8bff6185" : "#61a6ff85";
+    ctx.fillRect(tileColumn * TILE_WIDTH, tileRow * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+    ctx.restore();
+}
+function drawValidMoves(canvas, column, row, type, colour) {
+    // TODO: Show moves that would put you in danger (or in king's case, check)
+    for (let location of getValidMoves(canvas, column, row, type)) {
+        let canvas2 = board.querySelector(`[column="${location.boardColumn}"][row="${location.boardRow}"]`);
+        fillTile(canvas, location.pieceColumn, location.pieceRow, map.boards[location.boardColumn][location.boardRow]
+            .pieces[location.pieceColumn][location.pieceRow] != null);
+    }
+}
+function getValidMoves(canvas, column, row, type) {
+    let validMoves = new Array;
+    switch (type) {
+        case pieceTypes.Bishop:
+            break;
+        case pieceTypes.King: {
+            for (let x = column - 1; x <= column + 1; x++) {
+                for (let y = row - 1; y <= row + 1; y++) {
+                    let offset = getOffsetCanvas(canvas, x, y);
+                    if ((x == column && y == row) || offset == null)
+                        continue;
+                    validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+                }
+            }
+            break;
+        }
+        case pieceTypes.Knight: {
+            let offsets = [
+                getOffsetCanvas(canvas, column + 1, row + 2),
+                getOffsetCanvas(canvas, column + 2, row + 1),
+                getOffsetCanvas(canvas, column + 2, row - 1),
+                getOffsetCanvas(canvas, column + 1, row - 2),
+                getOffsetCanvas(canvas, column - 1, row - 2),
+                getOffsetCanvas(canvas, column - 2, row - 1),
+                getOffsetCanvas(canvas, column - 2, row + 1),
+                getOffsetCanvas(canvas, column - 1, row + 2)
+            ];
+            for (let i = 0; i < offsets.length; i++) {
+                if (offsets[i] == null)
+                    continue;
+                validMoves.push(new BoardLocation(Number(offsets[i][0].getAttribute("column")), Number(offsets[i][0].getAttribute("row")), offsets[i][1], offsets[i][2]));
+            }
+            break;
+        }
+        case pieceTypes.Pawn: {
+            let offset = getOffsetCanvas(canvas, column - 1, row - 1);
+            //TODO: Is not null safe
+            let pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
+            if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] - 1] != null)) {
+                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            }
+            offset = getOffsetCanvas(canvas, column - 1, row + 1);
+            //TODO: Is not null safe
+            pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
+            if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] + 1] != null)) {
+                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            }
+            offset = getOffsetCanvas(canvas, column, row - 1);
+            //TODO: Is not null safe
+            pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
+            if (offset != null && (pieces[offset[1] - 1] == null)) {
+                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            }
+            break;
+        }
+        case pieceTypes.Queen:
+            break;
+        case pieceTypes.Rook: {
+            for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
+                let offset = getOffsetCanvas(canvas, x, row);
+                if (x == column || offset == null)
+                    continue;
+                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            }
+            for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
+                let offset = getOffsetCanvas(canvas, column, y);
+                if (y == row || offset == null)
+                    continue;
+                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            }
+            break;
+        }
+    }
+    return validMoves;
+}
+function selectSpawnLocation() {
+    inputPermitted = false;
+    setZoom(0.2);
+    setPosition(map.boardsColumns / 2, map.boardsRows / 2, 0, 0);
+    spawnMenu.style.display = "flex";
+    tokenSpawnButton.style.display = localStorage.token ? "block" : "none";
+    function canvasMouseMove(event) {
+        let canvas = event.target;
+        let tileOverX = Math.floor(event.offsetX / TILE_WIDTH);
+        let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT);
+        drawCheckeredBackground(canvas);
+        drawPieces(canvas);
+        fillTile(canvas, tileOverX, tileOverY);
+    }
+    function canvasMouseLeave(event) {
+        drawCheckeredBackground(event.target);
+        drawPieces(event.target);
+    }
+    function canvasMouseUp(event) {
+        let canvas = event.target;
+        let tileOverX = Math.floor(event.offsetX / TILE_WIDTH);
+        let tileOverY = Math.floor(event.offsetY / TILE_HEIGHT);
+        board.querySelectorAll("canvas").forEach(canvas => {
+            canvas.removeEventListener("mousemove", canvasMouseMove);
+            canvas.removeEventListener("mouseleave", canvasMouseLeave);
+            canvas.removeEventListener("mouseup", canvasMouseUp);
+        });
+        drawCheckeredBackground(canvas);
+        drawPieces(canvas);
+        let spawnArray = new Uint8Array(7);
+        spawnArray[0] = clientPackets.Spawn;
+        spawnArray[1] = +canvas.getAttribute("column");
+        spawnArray[2] = +canvas.getAttribute("row");
+        spawnArray[3] = tileOverX;
+        spawnArray[4] = tileOverY;
+        spawnArray[5] = pieceType;
+        spawnArray[6] = pieceColour;
+        ws === null || ws === void 0 ? void 0 : ws.send(spawnArray);
+    }
+    board.querySelectorAll("canvas").forEach(canvas => {
+        canvas.addEventListener("mousemove", canvasMouseMove);
+        canvas.addEventListener("mouseleave", canvasMouseLeave);
+        canvas.addEventListener("mouseup", canvasMouseUp);
+    });
+}
+function drawPieces(canvas) {
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const virtualBoard = map.boards[+canvas.getAttribute("column")][+canvas.getAttribute("row")];
+    ctx.save();
+    ctx.filter = "drop-shadow(0px 0px 2px #9c9c9c)";
+    for (let x = 0; x < COLUMNS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+            let piece = virtualBoard.pieces[x][y];
+            if (piece == null)
+                continue;
+            let path = new Image();
+            path.src = "Assets/" + pieceTypes[piece.type].toLowerCase()
+                + "_" + pieceColours[pieceColour].toLowerCase() + ".svg";
+            path.onload = () => ctx.drawImage(path, x * TILE_WIDTH, y * TILE_HEIGHT);
+        }
+    }
+    ctx.restore();
+}
+function startTurnTimer(turn) {
+    if (turnTimerInterval != null)
+        clearInterval(turnTimerInterval);
+    // If the turn is us
+    if (myTurn) {
+        meTurnPopup.style.display = "block";
+        meTurnPopup.animate([
+            { transform: 'scale(0)' },
+            { opacity: '0' },
+            { transform: 'scale(1)' },
+            { opacity: '1' },
+        ], {
+            duration: 400,
+            iterations: 1
+        });
+        setTimeout(() => {
+            meTurnPopup.style.display = "none";
+        }, 2000);
+    }
+    const updateInterval = 100;
+    const iMax = TURN_TIME / updateInterval;
+    let i = 0;
+    turnProgress.style.transitionDuration = (TURN_TIME / iMax) + "ms";
+    turnTimerInterval = setInterval(() => {
+        if (i >= iMax && turnTimerInterval != null)
+            clearInterval(turnTimerInterval);
+        turnLabel.innerText = `Current turn: ${String(turn)}            (${String(Math.floor((i * updateInterval) / 1000))}s)`;
+        turnProgress.style.width = `calc(${i / iMax * 100}% - 16px)`;
+        turnProgress.style.backgroundPositionX = (iMax - i) * 0.5 + "px";
+        i++;
+    }, updateInterval);
+}
+function drawCheckeredBackground(canvas) {
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.save();
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let shift = false;
+    for (let row = 0; row < ROWS; row++) {
+        for (let column = 0; column < COLUMNS; column++) {
+            if (column % 2 != 0)
+                continue;
+            let x = (column + Number(shift)) * TILE_WIDTH;
+            let y = row * TILE_HEIGHT;
+            if (TILE_HEIGHT > 64 && TILE_WIDTH > 64) {
+                let gradientBlack = ctx.createLinearGradient(x, y, x + TILE_WIDTH, y + TILE_HEIGHT);
+                gradientBlack.addColorStop(0, "#3C3C3C");
+                gradientBlack.addColorStop(1, "black");
+                ctx.fillStyle = gradientBlack;
+            }
+            else {
+                ctx.fillStyle = "black";
+            }
+            ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT);
+        }
+        shift = !shift;
+    }
+    ctx.restore();
+}
+function easeOutCubic(progress) {
+    return 1 - Math.pow(1 - progress, 3);
+}
+// We place the column, row in the screen centre
+function setPosition(boardColumn, boardRow, tileColumn, tileRow) {
+    if (positionEase != null)
+        clearInterval(positionEase);
+    let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2;
+    let finalLeft = (centreX - ((boardColumn * TILE_WIDTH * COLUMNS) + (tileColumn * TILE_WIDTH)) * zoom);
+    let finalTop = (centreY - ((boardRow * TILE_HEIGHT * ROWS) + (tileRow * TILE_HEIGHT)) * zoom);
+    let initialLeft = board.offsetLeft;
+    let initialTop = board.offsetTop;
+    let current = 0;
+    const repeats = 50;
+    positionEase = setInterval(() => {
+        let ease = easeOutCubic(current / repeats);
+        board.style.left = (ease * (finalLeft - initialLeft) + initialLeft) + "px";
+        board.style.top = (ease * (finalTop - initialTop) + initialTop) + "px";
+        current++;
+        if (current >= repeats)
+            clearInterval(positionEase);
+    }, 16);
+}
+// Acceptable range is: 0.2 - 1 at 128px tile size, 0.4 - 2 at 64px tile size, etc...
+function setZoom(zoomLevel) {
+    let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2;
+    zoom = zoomLevel;
+    zoomIndicator.textContent = String(Math.round(zoom * 100) / 100);
+    board.style.transform = `scale(${zoom})`;
+}
+function onDragBody(event) {
+    let canvas = event.target;
+    if (!dragging || !inputPermitted)
+        return;
+    if (event.target != document.body && !board.contains(canvas))
+        return;
+    document.body.style.cursor = "default";
+    clearInterval(positionEase);
+    // Constrain position
+    let centreX = window.innerWidth / 2, centreY = window.innerHeight / 2;
+    board.style.left = Math.max(centreX - board.offsetWidth * zoom, Math.min(centreX, board.offsetLeft + event.movementX)) + "px";
+    board.style.top = Math.max(centreY - board.offsetHeight * zoom, Math.min(centreY, board.offsetTop + event.movementY)) + "px";
+}
+function onWheelBody(event) {
+    let canvas = event.target;
+    if (event.target != document.body && !board.contains(canvas) || !inputPermitted)
+        return;
+    setZoom(Math.min(Math.max(event.deltaY < 0 ? zoom + 0.1 : zoom - 0.1, 0.2), 1));
+}
+function onCanvasMouseDown(event) {
+    let canvas = event.target;
+    let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH);
+    let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT);
+    tileIndicator.textContent =
+        toAlphabetCoordinate(tileClickedX, tileClickedY).join(", ");
+    boardIndicator.textContent =
+        `${+canvas.getAttribute("column") + 1}, ${+canvas.getAttribute("row") + 1}`;
+    // If we are selecting on a piece, we are not dragging the board, block all propogation
+    let piece = map.boards[+canvas.getAttribute("column")][canvas.getAttribute("row")]
+        .pieces[tileClickedX][tileClickedY];
+    if (piece == null)
+        return;
+    event.stopPropagation();
+    if (piece.me) {
+        document.body.style.cursor = "grab";
+        pieceDragging = true;
+    }
+}
+function toAlphabetCoordinate(x, y) {
+    return [(x < 26 ? ALPHABET[x] : x), String(y)];
+}
+function onCanvasMouseDrag(event) {
+    if (!pieceDragging || !inputPermitted) {
+        document.body.style.cursor = "default";
+        return;
+    }
+    let canvas = event.target;
+    let tileDragX = (event.offsetX / TILE_WIDTH) - 0.5;
+    let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5;
+    let offset = getOffsetCanvas(canvas, tileDragX, tileDragY);
+    if (offset == null) {
+        return;
+    }
+    [canvas, tileDragX, tileDragY] = offset;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const path = new Image();
+    path.src = "Assets/" + pieceTypes[pieceType].toLowerCase()
+        + "_" + pieceColours[pieceColour].toLowerCase() + ".svg";
+    path.onload = () => {
+        drawCheckeredBackground(canvas);
+        drawPieces(canvas);
+        ctx.save();
+        ctx.fillStyle = (Math.round(tileDragX) + Math.round(tileDragY)) % 2 == 0 ? "#F2F2F2" : "#4D4D4D";
+        // Top 2 main
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT, 16, 8);
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT, 16, 8);
+        // Top 2 little blocks
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8);
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + 8, 8, 8);
+        // Bottom 2 little blocks
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8);
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 8), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 16), 8, 8);
+        // Bottom 2 main
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH, Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8);
+        ctx.fillRect(Math.round(tileDragX) * TILE_WIDTH + (TILE_WIDTH - 16), Math.round(tileDragY) * TILE_HEIGHT + (TILE_HEIGHT - 8), 16, 8);
+        ctx.restore();
+        ctx.drawImage(path, tileDragX * TILE_WIDTH, tileDragY * TILE_HEIGHT);
+    };
+    deltaX = (tileDragX + (Number(canvas.getAttribute("column")) * COLUMNS)) - (pieceColumn + (boardColumn * COLUMNS));
+    deltaY = (tileDragY + (Number(canvas.getAttribute("row")) * ROWS)) - (pieceRow + (boardRow * ROWS));
+}
+function onCanvasMouseUp(event) {
+    pieceDragging = false;
+    let canvas = event.target;
+    // Show possible moves
+    let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH);
+    let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT);
+    let piece = map.boards[Number(canvas.getAttribute("column"))][Number(canvas.getAttribute("row"))]
+        .pieces[tileClickedX][tileClickedY];
+    if (piece != null) {
+        // If we click on any piece, view what moves they could make
+        drawValidMoves(canvas, tileClickedX, tileClickedY, piece.type, piece.colour);
+        event.stopPropagation();
+    }
+    else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+        deltaX = 0;
+        deltaY = 0;
+        // Move our piece to that location, and send it to the server,
+        // issuing the final move when the server confirms we have finished the move.
+        let moveArray = new Uint8Array(5);
+        moveArray[0] = clientPackets.Move;
+        moveArray[1] = Number(canvas.getAttribute("column"));
+        moveArray[2] = Number(canvas.getAttribute("row"));
+        moveArray[3] = tileClickedX;
+        moveArray[4] = tileClickedY;
+        ws.send(moveArray);
+    }
+}
+connect(localStorage.address || "wss://server.poemanthology.org:8083");
+</script>
+</html>
