@@ -1,5 +1,3 @@
-using WatsonWebsocket;
-
 namespace AnarchyChess.Server.Virtual;
 
 /// <summary>
@@ -11,4 +9,7 @@ public record struct Piece
     string Token,
     PieceType Type,
     PieceColour Colour
-);
+)
+{
+    public static Piece Empty => new("", PieceType.Bishop, PieceColour.Black);
+}

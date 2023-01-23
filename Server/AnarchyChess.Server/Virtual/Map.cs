@@ -1,13 +1,9 @@
-using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Xml;
-
 namespace AnarchyChess.Server.Virtual;
 
 /// <summary>
 /// The chess boards are placed on a map, 
 /// </summary>
-public sealed class Map
+public struct Map
 {
     public Board[,] Boards { get; private set; }
     public byte Columns { get; set; }
@@ -47,25 +43,7 @@ public sealed class Map
         var board = Boards[currentLocation.BoardColumn, currentLocation.BoardRow];
 
         // Check if this movement across boards is legal before performing board-specific checks
-        if (newLocation.BoardColumn < currentLocation.BoardColumn)
-        {
-            
-        }
-        else if (newLocation.BoardColumn > currentLocation.BoardColumn)
-        {
-            
-        }
-
-        if (newLocation.BoardRow < currentLocation.BoardRow)
-        {
-            
-        }
-        else if (newLocation.BoardRow > currentLocation.BoardRow)
-        {
-            
-        }
-        
-        if (!board.TryMovePiece(token, newLocation))
+        if (!board.TryMovePiece(token, newLocation)) //Make this return a BoardLocation
         {
             // TODO: Check for if ToColumn/ToRow is off that piece's current board, if so, initiate a piece transfer
             // TODO: to that new board. Mutating the piece's boardrow and coardcolumn values (via reference).

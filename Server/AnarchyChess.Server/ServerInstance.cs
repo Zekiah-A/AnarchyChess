@@ -20,7 +20,7 @@ public sealed class ServerInstance
     public ServerInstance(int port, Map? map = null, bool ssl = false, string? certificatePath = null, string? keyPath = null)
     {
         map ??= new Map();
-        VirtualMap = map;
+        VirtualMap = map.Value;
         app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.Trace, "localhost");
         
         foreach (var board in VirtualMap.Boards)
@@ -107,7 +107,7 @@ public sealed class ServerInstance
                     if (Clients.TryGetKey(authenticatingToken, out var existingMetadata))
                     {
                         Logger?.Invoke(
-                            $"Spawn rejected from client {args.Client} due to invalid authentication token.");
+                            $"Spawn rejected from client {args.Client.IpPort} due to invalid authentication token.");
                         app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectToken});
                         return;
                     }
@@ -134,7 +134,7 @@ public sealed class ServerInstance
 
                 if (!VirtualMap.TrySpawnPiece(piece, location))
                 {
-                    Logger?.Invoke($"Spawn rejected from client {args.Client} due to invalid spawn location.");
+                    Logger?.Invoke($"Spawn rejected from client {args.Client.IpPort} due to invalid spawn location.");
                     app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectSpawn});
                     return;
                 }
@@ -170,13 +170,13 @@ public sealed class ServerInstance
                 // Packet is boardColumn = data[1], boardRow = data[2], pieceColumn = data[3], pieceRow = data[4]
                 if (data.Length != 5)
                 {
-                    Logger?.Invoke($"Move rejected from client {args.Client} due to invalid packet length.");
+                    Logger?.Invoke($"Move rejected from client {args.Client.IpPort} due to invalid packet length.");
                     return;
                 }
 
                 if (!Clients.TryGetValue(args.Client, out var clientToken))
                 {
-                    Logger?.Invoke($"Move rejected from client {args.Client} due to no registered client token.");
+                    Logger?.Invoke($"Move rejected from client {args.Client.IpPort} due to no registered client token.");
                     return;
                 }
 
@@ -187,7 +187,7 @@ public sealed class ServerInstance
                 // Attempt move piece, reject if move is invalid 
                 if (!VirtualMap.TryMovePiece(clientToken, newLocation))
                 {
-                    Logger?.Invoke($"Move rejected from client {args.Client} due to invalid piece move location.");
+                    Logger?.Invoke($"Move rejected from client {args.Client.IpPort} due to invalid piece move location.");
                     app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                     return;
                 }
@@ -216,7 +216,7 @@ public sealed class ServerInstance
                 // Packet is UTF-8 encoded message text = data [1..]
                 if (data.Length > 250)
                 {
-                    Logger?.Invoke($"Chat rejected from client {args.Client} due to too long message length.");
+                    Logger?.Invoke($"Chat rejected from client {args.Client.IpPort} due to too long message length.");
                     app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
                     return;
                 }

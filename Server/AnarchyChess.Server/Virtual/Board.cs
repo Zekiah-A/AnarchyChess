@@ -5,7 +5,7 @@ using Timer = System.Timers.Timer;
 namespace AnarchyChess.Server.Virtual;
 
 // ServerInstance should never have to see this class, only it's direct descendant, Map
-public sealed class Board
+public struct Board
 {
     public Piece[,] Pieces { get; private set; }
     public List<string> Turns { get; private set; }
@@ -153,6 +153,10 @@ public sealed class Board
             PieceKilledEvent.Invoke(this, new PieceKilledEventArgs(piece, taking));
         }
         
+        // Move piece to that location
+        Pieces[currentLocation.PieceColumn, currentLocation.PieceRow] = Piece.Empty;
+        Pieces[newLocation.PieceColumn, newLocation.PieceRow] = piece;
+
         // Stop running this turn, and go to the next turn if all was valid
         TurnTimer.Stop();
         ProgressTurn(this, null);

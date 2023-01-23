@@ -1,5 +1,3 @@
-using AnarchyChess.Server.Virtual;
-
 namespace AnarchyChess.Server.Events;
 
 public class TurnChangedEventArgs : EventArgs

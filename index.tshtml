@@ -294,6 +294,14 @@
         me: boolean;
     }
 
+    interface BoardLocation {
+        boardColumn: number;
+        boardRow: number;
+        pieceColumn: number;
+        pieceRow: number;
+    }
+
+    //@ts-ignore
     class Map implements Map { 
         constructor(public boardsColumns : number, public boardsRows : number, pieceColumns : number, pieceRows : number) {
             this.boards = new Array<Array<Board>>
@@ -320,7 +328,12 @@
     }
 
     class Piece implements Piece {
-        constructor(public type: pieceTypes, public colour : pieceColours){}
+        constructor(public type: pieceTypes, public colour: pieceColours){}
+    }
+
+    class BoardLocation implements BoardLocation {
+        constructor(public boardColumn: number, public boardRow: number,
+                    public pieceColumn: number, public pieceRow: number){}
     }
 
     function connect(address: string) {
@@ -372,22 +385,24 @@
                     break
                 }
                 case serverPackets.Move: {
-                    let previous: Piece = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)]
+                    let previous: Piece = map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)].valueOf()
                     let previousCanvas = document.querySelector(`[column="${data.getUint8(1)}"][row="${data.getUint8(2)}"]`) as HTMLCanvasElement
                     let canvas = document.querySelector(`[column="${data.getUint8(5)}"][row="${data.getUint8(6)}"]`) as HTMLCanvasElement
 
                     // We "remove" the piece from the board until we have animated it's dummy representation to the new position
                     map.boards[data.getUint8(1)][data.getUint8(2)].pieces[data.getUint8(3)][data.getUint8(4)] = null
+                    drawCheckeredBackground(previousCanvas)
+                    drawPieces(previousCanvas)
 
                     if (data.getUint8(9) == serverPackets.Me) {                        
                         boardColumn = data.getUint8(5)
                         boardRow =  data.getUint8(6)
                         pieceColumn = data.getUint8(7)
                         pieceRow = data.getUint8(8)
+                        map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = previous
+                        //why is barray end same as start
 
-                        setPosition(data.getUint8(5), data.getUint8(6), data.getUint8(7), data.getUint8(8))
-                        drawCheckeredBackground(previousCanvas)
-                        drawPieces(previousCanvas)
+                        setPosition(boardColumn, boardRow, pieceColumn, pieceRow)
                         drawCheckeredBackground(canvas)
                         drawPieces(canvas)
                         break
@@ -441,7 +456,6 @@
                         let y = data.getUint8(6) * TILE_HEIGHT
 
                         ctx.save()
-                        ctx.fillStyle = "#FFCD0473"
                         ctx.strokeStyle = "#FFCD0473"
                         ctx.lineWidth = 8
                         ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT); 
@@ -506,11 +520,13 @@
                     break
                 }
                 case serverPackets.RejectSpawn: {
+                    console.error("Spawn rejected")
                     selectSpawnLocation()
                     break
                 }
                 case serverPackets.RejectMove: {
-                    console.error("move rejected")
+                    console.error("Move rejected")
+                    drawPieces(document.querySelector(`[column="${boardColumn}"][row="${boardRow}"]`)!)
                     break
                 }
                 case serverPackets.Chat: {
@@ -530,6 +546,9 @@
         
         ws.onclose = (event) => {
             console.error(event)
+            setTimeout(() => {
+                connect(localStorage.address || "wss://server.poemanthology.org:8083")
+            }, 1000)
         }
     }
 
@@ -582,6 +601,7 @@
         })
     }
 
+    //TODO: Switch to get offset boardLocation!
     function getOffsetCanvas(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number) {
         // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
         // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
@@ -623,10 +643,12 @@
 
     function fillTile(canvas: HTMLCanvasElement, tileColumn: number, tileRow: number, special = false) {
         let offset = getOffsetCanvas(canvas, tileColumn, tileRow)
-        if (offset == null)
-            return
+        if (offset == null) return
         
         [canvas, tileColumn, tileRow] = offset as [HTMLCanvasElement, number, number]
+        if (offset == null) {
+            return
+        }
 
         // We skip if our shifting resulted in a canvas not even on the board
         const ctx = canvas.getContext("2d", { alpha: false })!
@@ -637,85 +659,97 @@
     }
 
     function drawValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number, colour: number) {
-        const ctx = canvas.getContext("2d", { alpha: false })!
-        const pieces = map.boards[+canvas.getAttribute("column")!][+canvas.getAttribute("row")!].pieces
 
         // TODO: Show moves that would put you in danger (or in king's case, check)
+
+    }
+
+    function getValidMoves(canvas: HTMLCanvasElement, column: number, row: number, type: number)
+    {
+        let validMoves = new Array<BoardLocation>
+                
         switch(type) {
             case pieceTypes.Bishop:
-                /*for (let x = column - COLUMNS; x < column + COLUMNS + 1; x++) {
-                    if (x == column) continue
-                    fillTile(canvas, x, x + row, (pieces[x] != null && pieces[x][x] != null))
-                    //fillTile(canvas, x, -x - row, (pieces[x] != null && pieces[x][-x] != null))
-                }*/
                 break
-            case pieceTypes.King:
-                // TODO: Include invalidated moves from others putting in check
-                // We create a square/border of allowed around, excluding central current pos
+            case pieceTypes.King: {
                 for (let x = column - 1; x <= column + 1; x++) {
                     for (let y = row - 1; y <= row + 1; y++) {
-                        if (x == column && y == row)
+                        let offset = getOffsetCanvas(canvas, x, y) as ([HTMLCanvasElement, number, number] | null)
+                        if ((x == column && y == row) || offset == null)
                             continue
-                        
-                        if (pieces[x] != null && pieces[x][y] != null) {
-                            fillTile(canvas, x, y, true)
-                            continue
-                        }
 
-                        fillTile(canvas, x, y)
+                        validMoves.push(
+                            new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
                     }
                 }
                 break
-            case pieceTypes.Knight:
-                const rookMoves = [
-                    [ column + 1, row + 2 ],
-                    [ column + 2, row + 1 ],
-                    [ column + 2, row - 1 ],
-                    [ column + 1, row - 2 ],
-                    [ column - 1, row - 2 ],
-                    [ column - 2, row - 1 ],
-                    [ column - 2, row + 1 ],
-                    [ column - 1, row + 2 ]
+            }
+            case pieceTypes.Knight: {
+                let offsets: Array<([HTMLCanvasElement, number, number] | null)> = [
+                    getOffsetCanvas(canvas, column + 1, row + 2) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column + 2, row + 1) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column + 2, row - 1) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column + 1, row - 2) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column - 1, row - 2) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column - 2, row - 1) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column - 2, row + 1) as ([HTMLCanvasElement, number, number] | null),
+                    getOffsetCanvas(canvas, column - 1, row + 2) as ([HTMLCanvasElement, number, number] | null)
                 ]
 
-                for (let move of rookMoves) {
-                    fillTile(canvas, move[0], move[1], (pieces[move[0]] != null  && pieces[move[0]][move[1]] != null))
+                for (let i = 0; i < offsets.length; i++) {
+                    if (offsets[i] == null)
+                        continue
+
+                    validMoves.push(
+                        new BoardLocation(Number(offsets[i][0].getAttribute("column")), Number(offsets[i][0].getAttribute("row")), offsets[i][1], offsets[i][2]))
                 }
                 break
-            case pieceTypes.Pawn:
-                // TODO: Implement correct suggestions for pawn colour variations
-                // Possible diagonal pawn take moves, if there's something there then fill specilal, else regular
-                if (pieces[column - 1] != null  && pieces[column - 1][row - 1] != null)
-                    fillTile(canvas, column - 1, row - 1, true)
-                else if (pieces[column - 1] != null && pieces[column - 1][row + 1] != null)
-                    fillTile(canvas, column - 1, row + 1, true)
-                else
-                    fillTile(canvas, column, (colour == pieceColours.White ? row + 1 : row - 1))
-                break
-            case pieceTypes.Queen:
-                //TODO: Depends on bishop
-                break
-            case pieceTypes.Rook:
-                for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
-                    if (x == column) continue
-                    if (pieces[x] != null  && pieces[x][row] != null) {
-                        fillTile(canvas, x, row, true)
-                        continue
-                    }
+            }
+            case pieceTypes.Pawn: {
+                let offset = getOffsetCanvas(canvas, column - 1, row - 1) as [HTMLCanvasElement, number, number] | null
+                let pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces //TODO: Is not null safe
+                if (offset != null && (pieces[offset[1] - 1] != null  && pieces[offset[1] - 1][offset[2] - 1] != null)) {
+                    validMoves.push(
+                        new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
+                }
 
-                    fillTile(canvas, x, row)
+                offset = getOffsetCanvas(canvas, column - 1, row + 1) as ([HTMLCanvasElement, number, number] | null)
+                pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces
+                if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] + 1] != null)) {
+                    validMoves.push(
+                        new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
+                }
+
+                offset = getOffsetCanvas(canvas, column, row - 1) as ([HTMLCanvasElement, number, number] | null)
+                pieces = map.boards[offset[0].getAttribute("column"), offset[0].getAttribute("row")].pieces
+                if (offset != null && (pieces[offset[1] - 1] == null)) {
+                    validMoves.push(
+                        new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
+                }
+                break
+            }
+            case pieceTypes.Queen:
+                break
+            case pieceTypes.Rook: {
+
+                for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
+                    let offset = getOffsetCanvas(canvas, x, row) as ([HTMLCanvasElement, number, number] | null)
+                    if (x == column || offset == null) continue
+
+                    validMoves.push(
+                        new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
+
                 }
 
                 for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
-                    if (y == row) continue
-                    if (pieces[column] != null  && pieces[column][y] != null) {
-                        fillTile(canvas, column, y, true)
-                        continue
-                    }
+                    let offset = getOffsetCanvas(canvas, column, y) as ([HTMLCanvasElement, number, number] | null)
+                    if (y == row || offset == null) continue
 
-                    fillTile(canvas, column, y)
+                    validMoves.push(
+                        new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]))
                 }
                 break
+            }
         }
     }
 
@@ -967,8 +1001,10 @@
         let tileDragY = (event.offsetY / TILE_HEIGHT) - 0.5
 
         let offset = getOffsetCanvas(canvas, tileDragX, tileDragY)
-        if (offset == null)
+        if (offset == null) {
             return
+        }
+
         [canvas, tileDragX, tileDragY] = offset as [HTMLCanvasElement, number, number]
 
         const ctx = canvas.getContext("2d", { alpha: false })!
@@ -1012,7 +1048,7 @@
         let tileClickedX = Math.floor(event.offsetX / TILE_WIDTH)
         let tileClickedY = Math.floor(event.offsetY / TILE_HEIGHT)
 
-        let piece = map.boards[canvas.getAttribute("column")!][canvas.getAttribute("row")!]
+        let piece = map.boards[Number(canvas.getAttribute("column"))][Number(canvas.getAttribute("row"))]
             .pieces[tileClickedX][tileClickedY]
 
         if (piece != null) {
@@ -1021,7 +1057,6 @@
             event.stopPropagation()
         }
         else if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
-            map.boards[boardColumn][boardRow].pieces[pieceColumn][pieceRow] = null
             deltaX = 0
             deltaY = 0
 
