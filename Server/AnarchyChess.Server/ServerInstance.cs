@@ -23,10 +23,14 @@ public sealed class ServerInstance
         VirtualMap = map.Value;
         app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.Trace, "localhost");
         
-        foreach (var board in VirtualMap.Boards)
+        // Would be nice if foreach could be used with ref...
+        for (var x = 0; x < VirtualMap.Columns; x++)
         {
-            board.PieceKilledEvent += OnPieceKilled;
-            board.TurnChangedEvent += OnTurnChanged;
+            for (var y = 0; y < VirtualMap.Rows; y++)
+            {
+                VirtualMap.Boards[x, y].PieceKilledEvent += OnPieceKilled;
+                VirtualMap.Boards[x, y].TurnChangedEvent += OnTurnChanged;
+            }
         }
 
         IdleDeletionTick = new Timer(DeleteIdlePieces, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
