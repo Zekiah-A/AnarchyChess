@@ -496,9 +496,7 @@ function connect(address) {
     };
     ws.onclose = (event) => {
         console.error(event);
-        setTimeout(() => {
-            connect(localStorage.address || "wss://server.poemanthology.org:8083");
-        }, 1000);
+        setTimeout(() => { window.location.reload(); }, 1000);
     };
 }
 function addChatMessage(message, event = null) {
@@ -544,31 +542,62 @@ function removeAllCanvases() {
     });
 }
 //TODO: Switch to get offset boardLocation!
+function getOffsetLocation(initialLocation) {
+    while (initialLocation.pieceColumn < 0) {
+        initialLocation.boardColumn -= 1;
+        if (initialLocation.boardColumn < 0) {
+            return null;
+        }
+        initialLocation.pieceColumn = COLUMNS - initialLocation.pieceColumn;
+    }
+    while (initialLocation.pieceRow < 0) {
+        initialLocation.boardRow -= 1;
+        if (initialLocation.boardRow < 0) {
+            return null;
+        }
+        initialLocation.pieceRow = ROWS - initialLocation.pieceRow;
+    }
+    while (initialLocation.pieceColumn > COLUMNS - 1) {
+        initialLocation.boardColumn += 1;
+        if (initialLocation.boardColumn > map.boardsColumns) {
+            return null;
+        }
+        initialLocation.pieceColumn -= COLUMNS;
+    }
+    while (initialLocation.pieceRow > ROWS - 1) {
+        initialLocation.boardRow += 1;
+        if (initialLocation.boardRow > map.boardsRows) {
+            return null;
+        }
+        initialLocation.pieceRow -= ROWS;
+    }
+    return initialLocation;
+}
 function getOffsetCanvas(canvas, tileColumn, tileRow) {
     // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
     // After, adjust the tileColumn/tileRow to where it would be relative to canvas in neighbour.
     while (tileColumn < 0) {
         canvas = board.querySelector(`[column="${+canvas.getAttribute("column") - 1}"][row="${+canvas.getAttribute("row")}"]`);
         if (canvas == null)
-            return;
+            return null;
         tileColumn = COLUMNS - Math.abs(tileColumn);
     }
     while (tileRow < 0) {
         canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") - 1}"]`);
         if (canvas == null)
-            return;
+            return null;
         tileRow = ROWS - Math.abs(tileRow);
     }
     while (tileColumn > COLUMNS - 1) {
         canvas = board.querySelector(`[column="${+canvas.getAttribute("column") + 1}"][row="${canvas.getAttribute("row")}"]`);
         if (canvas == null)
-            return;
+            return null;
         tileColumn -= COLUMNS;
     }
     while (tileRow > ROWS - 1) {
         canvas = board.querySelector(`[column="${+canvas.getAttribute("column")}"][row="${+canvas.getAttribute("row") + 1}"]`);
         if (canvas == null)
-            return;
+            return null;
         tileRow -= ROWS;
     }
     return [canvas, tileColumn, tileRow];
@@ -590,13 +619,14 @@ function fillTile(canvas, tileColumn, tileRow, special = false) {
 }
 function drawValidMoves(canvas, column, row, type, colour) {
     // TODO: Show moves that would put you in danger (or in king's case, check)
-    for (let location of getValidMoves(canvas, column, row, type)) {
-        let canvas2 = board.querySelector(`[column="${location.boardColumn}"][row="${location.boardRow}"]`);
-        fillTile(canvas, location.pieceColumn, location.pieceRow, map.boards[location.boardColumn][location.boardRow]
+    for (let location of getValidMoves(Number(canvas.getAttribute("column")), Number(canvas.getAttribute("row")), column, row, type, colour)) {
+        let offsetCanvas = board.querySelector(`[column="${location.boardColumn}"][row="${location.boardRow}"]`);
+        fillTile(offsetCanvas, location.pieceColumn, location.pieceRow, map.boards[location.boardColumn][location.boardRow]
             .pieces[location.pieceColumn][location.pieceRow] != null);
     }
 }
-function getValidMoves(canvas, column, row, type) {
+//TODO: Make input argument a board location
+function getValidMoves(boardX, boardY, column, row, type, colour) {
     let validMoves = new Array;
     switch (type) {
         case pieceTypes.Bishop:
@@ -604,50 +634,53 @@ function getValidMoves(canvas, column, row, type) {
         case pieceTypes.King: {
             for (let x = column - 1; x <= column + 1; x++) {
                 for (let y = row - 1; y <= row + 1; y++) {
-                    let offset = getOffsetCanvas(canvas, x, y);
+                    let offset = getOffsetLocation(new BoardLocation(boardX, boardY, x, y));
                     if ((x == column && y == row) || offset == null)
                         continue;
-                    validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+                    validMoves.push(offset);
                 }
             }
             break;
         }
         case pieceTypes.Knight: {
             let offsets = [
-                getOffsetCanvas(canvas, column + 1, row + 2),
-                getOffsetCanvas(canvas, column + 2, row + 1),
-                getOffsetCanvas(canvas, column + 2, row - 1),
-                getOffsetCanvas(canvas, column + 1, row - 2),
-                getOffsetCanvas(canvas, column - 1, row - 2),
-                getOffsetCanvas(canvas, column - 2, row - 1),
-                getOffsetCanvas(canvas, column - 2, row + 1),
-                getOffsetCanvas(canvas, column - 1, row + 2)
+                getOffsetLocation(new BoardLocation(boardX, boardY, column + 1, row + 2)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column + 2, row + 1)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column + 2, row - 1)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column + 1, row - 2)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row - 2)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column - 2, row - 1)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column - 2, row + 1)),
+                getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row + 2))
             ];
             for (let i = 0; i < offsets.length; i++) {
                 if (offsets[i] == null)
                     continue;
-                validMoves.push(new BoardLocation(Number(offsets[i][0].getAttribute("column")), Number(offsets[i][0].getAttribute("row")), offsets[i][1], offsets[i][2]));
+                validMoves.push(offsets[i]);
             }
             break;
         }
         case pieceTypes.Pawn: {
-            let offset = getOffsetCanvas(canvas, column - 1, row - 1);
-            //TODO: Is not null safe
-            let pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
-            if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] - 1] != null)) {
-                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            let offset = getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row - 1));
+            if (offset != null) {
+                let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
+                if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow - 1] != null)) {
+                    validMoves.push(offset);
+                }
             }
-            offset = getOffsetCanvas(canvas, column - 1, row + 1);
-            //TODO: Is not null safe
-            pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
-            if (offset != null && (pieces[offset[1] - 1] != null && pieces[offset[1] - 1][offset[2] + 1] != null)) {
-                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            offset = getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row + 1));
+            if (offset != null) {
+                let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
+                if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow + 1] != null)) {
+                    validMoves.push(offset);
+                }
             }
-            offset = getOffsetCanvas(canvas, column, row - 1);
-            //TODO: Is not null safe
-            pieces = map.boards[offset[0].getAttribute("column")][offset[0].getAttribute("row")].pieces;
-            if (offset != null && (pieces[offset[1] - 1] == null)) {
-                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+            offset = getOffsetLocation(new BoardLocation(boardX, boardY, column, colour == pieceColours.Black ? row - 1 : row + 1));
+            if (offset != null) {
+                let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
+                if ((pieces[offset.pieceColumn - 1] == null)) {
+                    validMoves.push(offset);
+                }
             }
             break;
         }
@@ -655,16 +688,16 @@ function getValidMoves(canvas, column, row, type) {
             break;
         case pieceTypes.Rook: {
             for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
-                let offset = getOffsetCanvas(canvas, x, row);
+                let offset = getOffsetLocation(new BoardLocation(boardX, boardY, x, row));
                 if (x == column || offset == null)
                     continue;
-                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+                validMoves.push(offset);
             }
             for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
-                let offset = getOffsetCanvas(canvas, column, y);
+                let offset = getOffsetLocation(new BoardLocation(boardX, boardY, column, y));
                 if (y == row || offset == null)
                     continue;
-                validMoves.push(new BoardLocation(Number(offset[0].getAttribute("column")), Number(offset[0].getAttribute("row")), offset[1], offset[2]));
+                validMoves.push(offset);
             }
             break;
         }
