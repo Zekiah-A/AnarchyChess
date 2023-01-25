@@ -541,37 +541,37 @@ function removeAllCanvases() {
         board.removeChild(canvas);
     });
 }
-//TODO: Switch to get offset boardLocation!
-function getOffsetLocation(initialLocation) {
-    while (initialLocation.pieceColumn < 0) {
-        initialLocation.boardColumn -= 1;
-        if (initialLocation.boardColumn < 0) {
+function getOffsetLocation(_boardColumn, _boardRow, column, row) {
+    let newLocation = new BoardLocation(_boardColumn, _boardRow, column, row);
+    while (newLocation.pieceColumn < 0) {
+        newLocation.boardColumn -= 1;
+        if (newLocation.boardColumn < 0) {
             return null;
         }
-        initialLocation.pieceColumn = COLUMNS - initialLocation.pieceColumn;
+        newLocation.pieceColumn = COLUMNS - newLocation.pieceColumn;
     }
-    while (initialLocation.pieceRow < 0) {
-        initialLocation.boardRow -= 1;
-        if (initialLocation.boardRow < 0) {
+    while (newLocation.pieceRow < 0) {
+        newLocation.boardRow -= 1;
+        if (newLocation.boardRow < 0) {
             return null;
         }
-        initialLocation.pieceRow = ROWS - initialLocation.pieceRow;
+        newLocation.pieceRow = ROWS - newLocation.pieceRow;
     }
-    while (initialLocation.pieceColumn > COLUMNS - 1) {
-        initialLocation.boardColumn += 1;
-        if (initialLocation.boardColumn > map.boardsColumns) {
+    while (newLocation.pieceColumn > COLUMNS - 1) {
+        newLocation.boardColumn += 1;
+        if (newLocation.boardColumn > map.boardsColumns) {
             return null;
         }
-        initialLocation.pieceColumn -= COLUMNS;
+        newLocation.pieceColumn -= COLUMNS;
     }
-    while (initialLocation.pieceRow > ROWS - 1) {
-        initialLocation.boardRow += 1;
-        if (initialLocation.boardRow > map.boardsRows) {
+    while (newLocation.pieceRow > ROWS - 1) {
+        newLocation.boardRow += 1;
+        if (newLocation.boardRow > map.boardsRows) {
             return null;
         }
-        initialLocation.pieceRow -= ROWS;
+        newLocation.pieceRow -= ROWS;
     }
-    return initialLocation;
+    return newLocation;
 }
 function getOffsetCanvas(canvas, tileColumn, tileRow) {
     // Reroute to neighbouring canvas if the location is outside bounds, for seamless canvas interop.
@@ -634,7 +634,7 @@ function getValidMoves(boardX, boardY, column, row, type, colour) {
         case pieceTypes.King: {
             for (let x = column - 1; x <= column + 1; x++) {
                 for (let y = row - 1; y <= row + 1; y++) {
-                    let offset = getOffsetLocation(new BoardLocation(boardX, boardY, x, y));
+                    let offset = getOffsetLocation(boardX, boardY, x, y);
                     if ((x == column && y == row) || offset == null)
                         continue;
                     validMoves.push(offset);
@@ -644,14 +644,14 @@ function getValidMoves(boardX, boardY, column, row, type, colour) {
         }
         case pieceTypes.Knight: {
             let offsets = [
-                getOffsetLocation(new BoardLocation(boardX, boardY, column + 1, row + 2)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column + 2, row + 1)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column + 2, row - 1)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column + 1, row - 2)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row - 2)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column - 2, row - 1)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column - 2, row + 1)),
-                getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row + 2))
+                getOffsetLocation(boardX, boardY, column + 1, row + 2),
+                getOffsetLocation(boardX, boardY, column + 2, row + 1),
+                getOffsetLocation(boardX, boardY, column + 2, row - 1),
+                getOffsetLocation(boardX, boardY, column + 1, row - 2),
+                getOffsetLocation(boardX, boardY, column - 1, row - 2),
+                getOffsetLocation(boardX, boardY, column - 2, row - 1),
+                getOffsetLocation(boardX, boardY, column - 2, row + 1),
+                getOffsetLocation(boardX, boardY, column - 1, row + 2)
             ];
             for (let i = 0; i < offsets.length; i++) {
                 if (offsets[i] == null)
@@ -661,21 +661,21 @@ function getValidMoves(boardX, boardY, column, row, type, colour) {
             break;
         }
         case pieceTypes.Pawn: {
-            let offset = getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row - 1));
+            let offset = getOffsetLocation(boardX, boardY, column - 1, row - 1);
             if (offset != null) {
                 let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
                 if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow - 1] != null)) {
                     validMoves.push(offset);
                 }
             }
-            offset = getOffsetLocation(new BoardLocation(boardX, boardY, column - 1, row + 1));
+            offset = getOffsetLocation(boardX, boardY, column - 1, row + 1);
             if (offset != null) {
                 let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
                 if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow + 1] != null)) {
                     validMoves.push(offset);
                 }
             }
-            offset = getOffsetLocation(new BoardLocation(boardX, boardY, column, colour == pieceColours.Black ? row - 1 : row + 1));
+            offset = getOffsetLocation(boardX, boardY, column, colour == pieceColours.Black ? row - 1 : row + 1);
             if (offset != null) {
                 let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces;
                 if ((pieces[offset.pieceColumn - 1] == null)) {
@@ -688,13 +688,13 @@ function getValidMoves(boardX, boardY, column, row, type, colour) {
             break;
         case pieceTypes.Rook: {
             for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
-                let offset = getOffsetLocation(new BoardLocation(boardX, boardY, x, row));
+                let offset = getOffsetLocation(boardX, boardY, x, row);
                 if (x == column || offset == null)
                     continue;
                 validMoves.push(offset);
             }
             for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
-                let offset = getOffsetLocation(new BoardLocation(boardX, boardY, column, y));
+                let offset = getOffsetLocation(boardX, boardY, column, y);
                 if (y == row || offset == null)
                     continue;
                 validMoves.push(offset);

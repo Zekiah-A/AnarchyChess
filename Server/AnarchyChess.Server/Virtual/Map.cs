@@ -42,13 +42,13 @@ public struct Map
         var currentLocation = LocatePieceInstance(token);
         var board = Boards[currentLocation.BoardColumn, currentLocation.BoardRow];
 
-        // Check if this movement across boards is legal before performing board-specific checks
-        if (!board.TryMovePiece(token, newLocation)) //Make this return a BoardLocation
+        var valid = GetValidMoves(currentLocation);
+
+        if (!board.TryMovePiece(token, newLocation))
         {
-            // TODO: Check for if ToColumn/ToRow is off that piece's current board, if so, initiate a piece transfer
-            // TODO: to that new board. Mutating the piece's boardrow and coardcolumn values (via reference).
             return false;
         }
+
 
         TokenLocations.Remove(token);
         TokenLocations.Add(token, newLocation);
@@ -61,6 +61,99 @@ public struct Map
         
         TokenLocations.Remove(token);
         Boards[location.BoardColumn, location.BoardRow].DeletePiece(token);
+    }
+
+    public BoardLocation[] GetValidMoves(BoardLocation currentLocation)
+    {
+        return Array.Empty<BoardLocation>();
+        /*
+        switch(type) {
+            case pieceTypes.Bishop:
+                break
+            case pieceTypes.King: {
+                for (let x = column - 1; x <= column + 1; x++) {
+                    for (let y = row - 1; y <= row + 1; y++) {
+                        let offset = getOffsetLocation(boardX, boardY, x, y)
+                        if ((x == column && y == row) || offset == null)
+                            continue
+
+                        validMoves.push(offset)
+                    }
+                }
+                break
+            }
+            case pieceTypes.Knight: {
+                let offsets: Array<(BoardLocation | null)> = [
+                    getOffsetLocation(boardX, boardY, column + 1, row + 2),
+                    getOffsetLocation(boardX, boardY, column + 2, row + 1),
+                    getOffsetLocation(boardX, boardY, column + 2, row - 1),
+                    getOffsetLocation(boardX, boardY, column + 1, row - 2),
+                    getOffsetLocation(boardX, boardY, column - 1, row - 2),
+                    getOffsetLocation(boardX, boardY, column - 2, row - 1),
+                    getOffsetLocation(boardX, boardY, column - 2, row + 1),
+                    getOffsetLocation(boardX, boardY, column - 1, row + 2)
+                ]
+
+                for (let i = 0; i < offsets.length; i++) {
+                    if (offsets[i] == null)
+                        continue
+
+                    validMoves.push(offsets[i])
+                }
+                break
+            }
+            case pieceTypes.Pawn: {
+                let offset = getOffsetLocation(boardX, boardY, column - 1, row - 1)
+                if (offset != null) {
+                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
+
+                    if ((pieces[offset.pieceColumn - 1] != null  && pieces[offset.pieceColumn - 1][offset.pieceRow - 1] != null)) {
+                        validMoves.push(offset)
+                    }
+                }
+
+                offset = getOffsetLocation(boardX, boardY, column - 1, row + 1)
+                if (offset != null) {
+                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
+
+                    if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow + 1] != null)) {
+                        validMoves.push(offset)
+                    }
+                }
+
+                offset = getOffsetLocation(boardX, boardY, column, colour == pieceColours.Black ? row - 1 : row + 1)
+                if (offset != null) {
+                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
+
+                    if ((pieces[offset.pieceColumn - 1] == null)) {
+                        validMoves.push(offset)
+                    }
+                }
+                break
+            }
+            case pieceTypes.Queen:
+                break
+            case pieceTypes.Rook: {
+                for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
+                    let offset = getOffsetLocation(boardX, boardY, x, row)
+                    if (x == column || offset == null)
+                        continue
+
+                    validMoves.push(offset)
+
+                }
+
+                for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
+                    let offset = getOffsetLocation(boardX, boardY, column, y)
+                    if (y == row || offset == null)
+                        continue
+
+                    validMoves.push(offset)
+                }
+                break
+            }
+        }
+         */
     }
 
     // Will try to find a piece on the map, by looking through TokenLocation caches and iteration.
