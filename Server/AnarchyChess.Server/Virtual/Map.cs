@@ -63,8 +63,49 @@ public struct Map
         Boards[location.BoardColumn, location.BoardRow].DeletePiece(token);
     }
 
-    public BoardLocation[] GetValidMoves(BoardLocation currentLocation)
+    private BoardLocation[] GetValidMoves(BoardLocation currentLocation, PieceType type, PieceColour colour)
     {
+        var validMoves = new List<BoardLocation>();
+        
+        switch (type)
+        {
+            case PieceType.Bishop:
+            {
+                break;
+            }
+            case PieceType.King:
+            {
+                for (var x = currentLocation.PieceColumn - 1; x <= currentLocation.PieceColumn + 1; x++)
+                {
+                    for (var y = currentLocation.PieceRow - 1; y <= currentLocation.PieceRow + 1; y++)
+                    {
+                        var offset = GetOffsetLocation(currentLocation with { PieceColumn = x, PieceRow = y });
+                        if (offset is null || (x == currentLocation.PieceColumn && y == currentLocation.PieceRow))
+                            continue;
+                        
+                        validMoves.Add(offset.Value);
+                    }
+                }
+                break;
+            }
+            case PieceType.Knight:
+            {
+                break;
+            }
+            case PieceType.Pawn:
+            {
+                break;
+            }
+            case PieceType.Queen:
+            {
+                break;
+            }
+            case PieceType.Rook:
+            {
+                break;
+            }
+        }
+        
         return Array.Empty<BoardLocation>();
         /*
         switch(type) {
@@ -154,6 +195,11 @@ public struct Map
             }
         }
          */
+    }
+
+    private BoardLocation? GetOffsetLocation(BoardLocation currentLocation)
+    {
+        return BoardLocation.Default;
     }
 
     // Will try to find a piece on the map, by looking through TokenLocation caches and iteration.
