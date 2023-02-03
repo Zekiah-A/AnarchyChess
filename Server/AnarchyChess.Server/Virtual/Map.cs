@@ -42,7 +42,8 @@ public struct Map
         var currentLocation = LocatePieceInstance(token);
         var board = Boards[currentLocation.BoardColumn, currentLocation.BoardRow];
 
-        var valid = GetValidMoves(currentLocation);
+        var piece = GetPieceInstance(token);
+        var valid = GetValidMoves(currentLocation, piece.Type, piece.Colour);
 
         if (!board.TryMovePiece(token, newLocation))
         {
@@ -106,7 +107,7 @@ public struct Map
             }
         }
         
-        return Array.Empty<BoardLocation>();
+        return validMoves.ToArray();
         /*
         switch(type) {
             case pieceTypes.Bishop:
@@ -200,6 +201,50 @@ public struct Map
     private BoardLocation? GetOffsetLocation(BoardLocation currentLocation)
     {
         return BoardLocation.Default;
+        /*
+        while (newLocation.pieceColumn < 0) {
+            newLocation.boardColumn -= 1
+            if (newLocation.boardColumn < 0) {
+                return null
+            }
+
+            newLocation.pieceColumn = COLUMNS - newLocation.pieceColumn
+        }
+        while (newLocation.pieceRow < 0) {
+            newLocation.boardRow -= 1
+            if (newLocation.boardRow < 0) {
+                return null
+            }
+
+            newLocation.pieceRow = ROWS - newLocation.pieceRow
+        }
+        while (newLocation.pieceColumn > COLUMNS - 1) {            
+            newLocation.boardColumn += 1
+            if (newLocation.boardColumn > map.boardsColumns) {
+                return null
+            }
+
+            newLocation.pieceColumn -= COLUMNS
+        }
+        while (newLocation.pieceRow > ROWS - 1) {
+            newLocation.boardRow += 1
+            if (newLocation.boardRow > map.boardsRows) {
+                return null
+            }
+
+            newLocation.pieceRow -= ROWS
+        }
+
+        return newLocation
+         */
+    }
+    
+    public ref Piece GetPieceInstance(string token)
+    {
+        var located = LocatePieceInstance(token);
+        
+        return ref Boards[located.BoardColumn, located.BoardRow]
+            .Pieces[located.PieceColumn, located.PieceRow];
     }
 
     // Will try to find a piece on the map, by looking through TokenLocation caches and iteration.

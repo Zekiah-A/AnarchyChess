@@ -63,7 +63,7 @@ public sealed class ServerInstance
         var piecesWhite = 0;
         var piecesBlack = 0;
         var i = 5;
-        foreach (var clientPiece in Clients.Values.Select(clientToken => GetPieceInstance(clientToken)))
+        foreach (var clientPiece in Clients.Values.Select(clientToken => VirtualMap.GetPieceInstance(clientToken)))
         {
             SerialisePiecePacket(clientPiece).CopyTo(canvasesBuffer, i);
 
@@ -360,14 +360,6 @@ public sealed class ServerInstance
         buffer[7] = (byte) located.PieceRow;
         
         return buffer;
-    }
-    
-    private ref Piece GetPieceInstance(string token)
-    {
-        var located = VirtualMap.LocatePieceInstance(token);
-        
-        return ref VirtualMap.Boards[located.BoardColumn, located.BoardRow]
-            .Pieces[located.PieceColumn, located.PieceRow];
     }
 }
 
