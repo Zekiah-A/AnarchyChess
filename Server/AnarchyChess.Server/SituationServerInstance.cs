@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
-public sealed class SituationServerInstance
+public sealed class SituationServerInstance : ServerInstance
 {
-    
+    internal SituationServerInstance(WatsonWsServer server, Action<string>? logger = null, Map? map = null) : base(server, logger, map)
+    {
+    }
 }

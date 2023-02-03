@@ -11,17 +11,13 @@ public struct Board
     public List<string> Turns { get; private set; }
     public int CurrentTurn { get; private set; }
     private Timer TurnTimer { get; set; }
-    private int Columns { get; }
-    private int Rows { get; }
-    public byte Column { get; }
-    public byte Row { get; }
+    public int Columns { get; }
+    public int Rows { get; }
     public event EventHandler<TurnChangedEventArgs> TurnChangedEvent = (_, _) => { };
     public event EventHandler<PieceKilledEventArgs> PieceKilledEvent = (_, _) => { };
 
-    public Board(byte row, byte column, byte columns = 8, byte rows = 8, TimeSpan period = default)
+    public Board(byte columns = 8, byte rows = 8, TimeSpan period = default)
     {
-        Row = row;
-        Column = column;
         Rows = rows;
         Columns = columns;
         Turns = new List<string>();

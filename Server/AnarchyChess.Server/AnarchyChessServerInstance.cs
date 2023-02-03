@@ -7,18 +7,16 @@ using Microsoft.Extensions.Logging;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
-public sealed class AnarchyChessServerInstance: ServerInstance
+public sealed class AnarchyChessServerInstance : ServerInstance
 {
-    public Map VirtualMap { get; }
     public Dictionary<ClientMetadata, DateTime> IdlePieces = new();
     public Timer IdleDeletionTick;
 
-    public AnarchyChessServerInstance(int port, bool ssl = false, string? certificatePath = null, string? keyPath = null, Map? map = null)
+    public AnarchyChessServerInstance(WatsonWsServer server, Action<string>? logger = null, Map? map = null) : base(server, logger, map)
     {
-        app = new WatsonWsServer(port, ssl, certificatePath,  keyPath, LogLevel.Trace, "localhost");
         map ??= new Map();
         VirtualMap = map.Value;
-
+        
         for (var x = 0; x < VirtualMap.Columns; x++)
         {
             for (var y = 0; y < VirtualMap.Rows; y++)
@@ -30,17 +28,8 @@ public sealed class AnarchyChessServerInstance: ServerInstance
 
         IdleDeletionTick = new Timer(DeleteIdlePieces, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
     }
-
-    public override async Task StartAsync()
-    {
-        app.ClientConnected += OnClientConnected;
-        app.MessageReceived += OnMessageReceived;
-        app.ClientDisconnected += OnClientDisconnected;
-
-        await app.StartAsync();
-    }
-
-    private void OnClientConnected(object? sender, ClientConnectedEventArgs args)
+    
+    private protected override void OnClientConnected(object? sender, ClientConnectedEventArgs args)
     {
         // (byte) Packet code = data[0], (byte) boards columns = data[1], (byte) boards rows = data[2],
         // (byte) pieces columns = data[3], (byte) pieces rows = data[4], (byte..[]) pieces data[5..]
@@ -77,11 +66,11 @@ public sealed class AnarchyChessServerInstance: ServerInstance
         BinaryPrimitives.WriteUInt32BigEndian(colourBalanceBuffer[1..], (uint) piecesWhite);
         BinaryPrimitives.WriteUInt32BigEndian(colourBalanceBuffer[5..], (uint) piecesBlack);
 
-        app.SendAsync(args.Client, canvasesBuffer);
-        app.SendAsync(args.Client, colourBalanceBuffer.ToArray());
+        App.SendAsync(args.Client, canvasesBuffer);
+        App.SendAsync(args.Client, colourBalanceBuffer.ToArray());
     }
 
-    private void OnMessageReceived(object? sender, MessageReceivedEventArgs args)
+    private protected override void OnMessageReceived(object? sender, MessageReceivedEventArgs args)
     {
         var data = new Span<byte>(args.Data.ToArray());
         var code = data[0];
@@ -107,7 +96,7 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                     {
                         Logger?.Invoke(
                             $"Spawn rejected from client {args.Client.IpPort} due to invalid authentication token.");
-                        app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectToken});
+                        App.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectToken});
                         return;
                     }
 
@@ -134,7 +123,7 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 if (!VirtualMap.TrySpawnPiece(piece, location))
                 {
                     Logger?.Invoke($"Spawn rejected from client {args.Client.IpPort} due to invalid spawn location.");
-                    app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectSpawn});
+                    App.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectSpawn});
                     return;
                 }
 
@@ -146,7 +135,7 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 tokenBuffer[0] = (byte) ServerPackets.Token;
                 guidBuffer.CopyTo(tokenBuffer, 1);
 
-                app.SendAsync(args.Client, tokenBuffer);
+                App.SendAsync(args.Client, tokenBuffer);
 
                 // Send to all connected clients
                 var sendBuffer = new byte[8];
@@ -154,12 +143,12 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 SerialisePiecePacket(piece).CopyTo(sendBuffer, 1);
 
                 sendBuffer[7] = (byte) ServerPackets.Me;
-                app.SendAsync(args.Client, sendBuffer);
+                App.SendAsync(args.Client, sendBuffer);
                 sendBuffer[7] = 0;
 
-                foreach (var client in app.Clients.Where(client => client != args.Client))
+                foreach (var client in App.Clients.Where(client => client != args.Client))
                 {
-                    app.SendAsync(client, sendBuffer);
+                    App.SendAsync(client, sendBuffer);
                 }
 
                 break;
@@ -187,7 +176,7 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 if (!VirtualMap.TryMovePiece(clientToken, newLocation))
                 {
                     Logger?.Invoke($"Move rejected from client {args.Client.IpPort} due to invalid piece move location.");
-                    app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
+                    App.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectMove});
                     return;
                 }
 
@@ -196,17 +185,17 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 moveBuffer[0] = (byte) ServerPackets.Move;
                 SerialiseMovePacket(clientToken, previousPosition).CopyTo(moveBuffer, 1);
 
-                foreach (var client in app.Clients)
+                foreach (var client in App.Clients)
                 {
                     if (Clients.TryGetValue(client, out var pieceToken) && pieceToken.Equals(clientToken))
                     {
                         moveBuffer[9] = (byte) ServerPackets.Me;
-                        app.SendAsync(client, moveBuffer);
+                        App.SendAsync(client, moveBuffer);
                         moveBuffer[9] = 0;
                         continue;
                     }
 
-                    app.SendAsync(client, moveBuffer);
+                    App.SendAsync(client, moveBuffer);
                 }
                 break;
             }
@@ -216,16 +205,16 @@ public sealed class AnarchyChessServerInstance: ServerInstance
                 if (data.Length > 250)
                 {
                     Logger?.Invoke($"Chat rejected from client {args.Client.IpPort} due to too long message length.");
-                    app.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
+                    App.SendAsync(args.Client, new[] {(byte) ServerPackets.RejectChat});
                     return;
                 }
 
                 // Rebrand chat as a server packet and send to all players
                 data[0] = (byte) ServerPackets.Chat;
 
-                foreach (var client in app.Clients)
+                foreach (var client in App.Clients)
                 {
-                    app.SendAsync(client, data.ToArray());
+                    App.SendAsync(client, data.ToArray());
                 }
 
                 break;
@@ -233,10 +222,80 @@ public sealed class AnarchyChessServerInstance: ServerInstance
         }
     }
     
-    private void OnClientDisconnected(object? sender, ClientDisconnectedEventArgs args)
+    private protected override void OnClientDisconnected(object? sender, ClientDisconnectedEventArgs args)
     {
         // We queue these clients to be fully removed from the game after 5 minutes of disconnection
         // If they reconnect before they will still be able to reauthenticate into their piece via their token.
         IdlePieces.Add(args.Client, DateTime.Now.AddMinutes(5));
+    }
+    
+    private void DeleteIdlePieces(object? state)
+    {
+        foreach (var pair in IdlePieces.Where(pair => pair.Value >= DateTime.Now))
+        {
+            if (Clients.TryGetValue(pair.Key, out var clientToken))
+            {
+                RemovePiece(clientToken);
+            }
+            
+            Clients.Remove(pair.Key);
+            IdlePieces.Remove(pair.Key);
+        }
+    }
+
+    private void RemovePiece(string token)
+    {
+        // Delete piece from that board
+        VirtualMap.DeletePiece(token);
+
+        // We send a position packet to say where the killed player was
+        var killBuffer = new byte[6];
+        killBuffer[0] = (byte) ServerPackets.PieceKilled;
+        SerialisePositionPacket(token).CopyTo(killBuffer, 1);
+        
+        foreach (var client in App.Clients)
+        {
+            if (Clients.TryGetValue(client, out var pieceToken) && pieceToken.Equals(token))
+            {
+                killBuffer[5] = (byte) ServerPackets.Me;
+                App.SendAsync(client, killBuffer);
+                killBuffer[5] = 0;
+                continue;
+            }
+
+            App.SendAsync(client, killBuffer);
+        }
+    }
+    
+    private void OnPieceKilled(object? sender, PieceKilledEventArgs args)
+    {
+        RemovePiece(args.Killed.Token);
+        Logger?.Invoke($"Piece {args.Killed.Token} was killed by {args.Killer.Token}.");
+    }
+
+    private void OnTurnChanged(object? sender, TurnChangedEventArgs args)
+    {
+        // Turn change packet is data[1..2] = (ushort) current turn, data[3..7] = position packet of currently playing piece.
+        var turnBuffer = (Span<byte>) stackalloc byte[8];
+        turnBuffer[0] = (byte) ServerPackets.TurnChanged;
+        BinaryPrimitives.WriteUInt16BigEndian(turnBuffer[1..], (ushort) args.Turn);
+        new Span<byte>(SerialisePositionPacket(args.Token)).CopyTo(turnBuffer[3..]);
+        
+        lock (App.Clients)
+        {
+            foreach (var client in App.Clients)
+            {
+                if (Clients.TryGetKey(args.Token, out var clientMetadata) && clientMetadata == client)
+                {
+                    turnBuffer[7] = (byte) ServerPackets.Me;
+                    App.SendAsync(client, turnBuffer.ToArray());
+                    turnBuffer[7] = 0;
+                }
+                else
+                {
+                    App.SendAsync(client, turnBuffer.ToArray());
+                }
+            }
+        }
     }
 }

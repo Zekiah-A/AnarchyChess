@@ -10,7 +10,7 @@ public struct Map
     public byte Rows { get; set; }
     public Dictionary<string, BoardLocation> TokenLocations { get; private set; }
     
-    public Map(byte columns = 1, byte rows = 1, byte pieceRows = 8, byte pieceColumns = 8, TimeSpan period = default)
+    public Map(byte columns = 1, byte rows = 1, byte pieceColumns = 8, byte pieceRows = 8, TimeSpan period = default)
     {
         Boards = new Board[columns, rows];
         Columns = columns;
@@ -21,7 +21,7 @@ public struct Map
         {
             for (byte y = 0; y < rows; y++)
             {
-                Boards[x, y] = new Board(x, y, pieceColumns, pieceRows, period);
+                Boards[x, y] = new Board(pieceColumns, pieceRows, period);
             }
         }
     }
@@ -39,17 +39,18 @@ public struct Map
 
     public bool TryMovePiece(string token, BoardLocation newLocation)
     {
-        var currentLocation = LocatePieceInstance(token);
-        var board = Boards[currentLocation.BoardColumn, currentLocation.BoardRow];
-
-        var piece = GetPieceInstance(token);
-        var valid = GetValidMoves(currentLocation, piece.Type, piece.Colour);
-
+        if (newLocation.BoardColumn < 0 || newLocation.BoardColumn > Columns || newLocation.BoardRow < 0 ||
+            newLocation.BoardRow > Rows)
+        {
+            return false;
+        }
+        
+        var board = Boards[newLocation.BoardColumn, newLocation.BoardRow];
+        
         if (!board.TryMovePiece(token, newLocation))
         {
             return false;
         }
-
 
         TokenLocations.Remove(token);
         TokenLocations.Add(token, newLocation);
@@ -64,6 +65,7 @@ public struct Map
         Boards[location.BoardColumn, location.BoardRow].DeletePiece(token);
     }
 
+    //TODO: Move move validation up to server instance level
     private BoardLocation[] GetValidMoves(BoardLocation currentLocation, PieceType type, PieceColour colour)
     {
         var validMoves = new List<BoardLocation>();
@@ -81,20 +83,86 @@ public struct Map
                     for (var y = currentLocation.PieceRow - 1; y <= currentLocation.PieceRow + 1; y++)
                     {
                         var offset = GetOffsetLocation(currentLocation with { PieceColumn = x, PieceRow = y });
-                        if (offset is null || (x == currentLocation.PieceColumn && y == currentLocation.PieceRow))
+                        if (offset == BoardLocation.Default || (x == currentLocation.PieceColumn && y == currentLocation.PieceRow))
                             continue;
                         
-                        validMoves.Add(offset.Value);
+                        validMoves.Add(offset);
                     }
                 }
                 break;
             }
             case PieceType.Knight:
             {
+                var offsets = new[]
+                {
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn + 1, PieceRow = currentLocation.PieceRow + 2
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn + 2, PieceRow = currentLocation.PieceRow + 1
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn + 2, PieceRow = currentLocation.PieceRow - 1
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn + 1, PieceRow = currentLocation.PieceRow - 2
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn - 1, PieceRow = currentLocation.PieceRow - 2
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn - 2, PieceRow = currentLocation.PieceRow - 1
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn - 2, PieceRow = currentLocation.PieceRow + 1
+                    }),
+                    GetOffsetLocation(currentLocation with
+                    {
+                        PieceColumn = currentLocation.PieceColumn - 1, PieceRow = currentLocation.PieceRow + 2
+                    })
+                };
+
+                validMoves.AddRange(offsets.Where(location => location != PieceLocation.Default));
                 break;
             }
             case PieceType.Pawn:
             {
+                var offset = GetOffsetLocation(currentLocation with
+                {
+                    PieceColumn = currentLocation.PieceColumn - 1, PieceRow = currentLocation.PieceRow - 1
+                });
+                if (offset != BoardLocation.Default)
+                {
+                    validMoves.Add(offset);
+                }
+
+                offset = GetOffsetLocation(currentLocation with
+                {
+                    PieceColumn = currentLocation.PieceColumn - 1, PieceRow = currentLocation.PieceRow + 1
+                });
+                if (offset != BoardLocation.Default)
+                {
+                    validMoves.Add(offset);
+                }
+
+                offset = GetOffsetLocation(currentLocation with
+                {
+                    PieceColumn = colour == PieceColour.Black
+                        ? currentLocation.PieceColumn - 1
+                        : currentLocation.PieceColumn + 1,
+                    PieceRow = currentLocation.PieceRow
+                });
+                if (offset != BoardLocation.Default)
+                {
+                    validMoves.Add(offset);
+                }
                 break;
             }
             case PieceType.Queen:
@@ -103,140 +171,74 @@ public struct Map
             }
             case PieceType.Rook:
             {
+                for (var x = currentLocation.PieceColumn - 8; x < currentLocation.PieceColumn + 8; x++)
+                {
+                    var offset = GetOffsetLocation(currentLocation with {PieceColumn = x});
+                    if (offset != BoardLocation.Default && x != currentLocation.PieceColumn)
+                    {
+                        validMoves.Add(offset);
+                    }
+                }
+
+                for (var y = currentLocation.PieceRow - 8; y < currentLocation.PieceRow + 8; y++)
+                {
+                    var offset = GetOffsetLocation(currentLocation with { PieceRow = y });
+                    if (offset != BoardLocation.Default && y != currentLocation.PieceRow)
+                    {
+                        validMoves.Add(offset); 
+                    }
+                }
                 break;
             }
         }
         
         return validMoves.ToArray();
-        /*
-        switch(type) {
-            case pieceTypes.Bishop:
-                break
-            case pieceTypes.King: {
-                for (let x = column - 1; x <= column + 1; x++) {
-                    for (let y = row - 1; y <= row + 1; y++) {
-                        let offset = getOffsetLocation(boardX, boardY, x, y)
-                        if ((x == column && y == row) || offset == null)
-                            continue
-
-                        validMoves.push(offset)
-                    }
-                }
-                break
-            }
-            case pieceTypes.Knight: {
-                let offsets: Array<(BoardLocation | null)> = [
-                    getOffsetLocation(boardX, boardY, column + 1, row + 2),
-                    getOffsetLocation(boardX, boardY, column + 2, row + 1),
-                    getOffsetLocation(boardX, boardY, column + 2, row - 1),
-                    getOffsetLocation(boardX, boardY, column + 1, row - 2),
-                    getOffsetLocation(boardX, boardY, column - 1, row - 2),
-                    getOffsetLocation(boardX, boardY, column - 2, row - 1),
-                    getOffsetLocation(boardX, boardY, column - 2, row + 1),
-                    getOffsetLocation(boardX, boardY, column - 1, row + 2)
-                ]
-
-                for (let i = 0; i < offsets.length; i++) {
-                    if (offsets[i] == null)
-                        continue
-
-                    validMoves.push(offsets[i])
-                }
-                break
-            }
-            case pieceTypes.Pawn: {
-                let offset = getOffsetLocation(boardX, boardY, column - 1, row - 1)
-                if (offset != null) {
-                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
-
-                    if ((pieces[offset.pieceColumn - 1] != null  && pieces[offset.pieceColumn - 1][offset.pieceRow - 1] != null)) {
-                        validMoves.push(offset)
-                    }
-                }
-
-                offset = getOffsetLocation(boardX, boardY, column - 1, row + 1)
-                if (offset != null) {
-                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
-
-                    if ((pieces[offset.pieceColumn - 1] != null && pieces[offset.pieceColumn - 1][offset.pieceRow + 1] != null)) {
-                        validMoves.push(offset)
-                    }
-                }
-
-                offset = getOffsetLocation(boardX, boardY, column, colour == pieceColours.Black ? row - 1 : row + 1)
-                if (offset != null) {
-                    let pieces = map.boards[offset.boardColumn][offset.boardRow].pieces
-
-                    if ((pieces[offset.pieceColumn - 1] == null)) {
-                        validMoves.push(offset)
-                    }
-                }
-                break
-            }
-            case pieceTypes.Queen:
-                break
-            case pieceTypes.Rook: {
-                for (let x = -COLUMNS + column; x < COLUMNS + column + 1; x++) {
-                    let offset = getOffsetLocation(boardX, boardY, x, row)
-                    if (x == column || offset == null)
-                        continue
-
-                    validMoves.push(offset)
-
-                }
-
-                for (let y = -ROWS + row; y < ROWS + row + 1; y++) {
-                    let offset = getOffsetLocation(boardX, boardY, column, y)
-                    if (y == row || offset == null)
-                        continue
-
-                    validMoves.push(offset)
-                }
-                break
-            }
-        }
-         */
     }
 
-    private BoardLocation? GetOffsetLocation(BoardLocation currentLocation)
+    private BoardLocation GetOffsetLocation(BoardLocation newLocation)
     {
-        return BoardLocation.Default;
-        /*
-        while (newLocation.pieceColumn < 0) {
-            newLocation.boardColumn -= 1
-            if (newLocation.boardColumn < 0) {
-                return null
+        while (newLocation.PieceColumn < 0)
+        {
+            newLocation.BoardColumn -= 1;
+            if (newLocation.BoardColumn < 0)
+            {
+                return BoardLocation.Default;
             }
 
-            newLocation.pieceColumn = COLUMNS - newLocation.pieceColumn
+            newLocation.PieceColumn = Boards[newLocation.BoardColumn, newLocation.BoardRow].Columns - newLocation.PieceColumn;
         }
-        while (newLocation.pieceRow < 0) {
-            newLocation.boardRow -= 1
-            if (newLocation.boardRow < 0) {
-                return null
+        while (newLocation.PieceRow < 0)
+        {
+            newLocation.BoardRow -= 1;
+            if (newLocation.BoardRow < 0)
+            {
+                return BoardLocation.Default;
             }
 
-            newLocation.pieceRow = ROWS - newLocation.pieceRow
+            newLocation.PieceRow = Boards[newLocation.BoardColumn, newLocation.BoardRow].Rows - newLocation.PieceRow;
         }
-        while (newLocation.pieceColumn > COLUMNS - 1) {            
-            newLocation.boardColumn += 1
-            if (newLocation.boardColumn > map.boardsColumns) {
-                return null
+        while (newLocation.PieceColumn > Boards[newLocation.BoardColumn, newLocation.BoardRow].Columns - 1)
+        {
+            newLocation.BoardColumn += 1;
+            if (newLocation.BoardColumn > Columns)
+            {
+                return BoardLocation.Default;
             }
 
-            newLocation.pieceColumn -= COLUMNS
+            newLocation.PieceColumn -= Boards[newLocation.BoardColumn, newLocation.BoardRow].Columns;
         }
-        while (newLocation.pieceRow > ROWS - 1) {
-            newLocation.boardRow += 1
-            if (newLocation.boardRow > map.boardsRows) {
-                return null
+        while (newLocation.PieceRow > Boards[newLocation.BoardColumn, newLocation.BoardRow].Rows - 1)
+        {
+            newLocation.BoardRow += 1;
+            if (newLocation.BoardRow > Rows)
+            {
+                return BoardLocation.Default;
             }
 
-            newLocation.pieceRow -= ROWS
+            newLocation.PieceRow -= Boards[newLocation.BoardColumn, newLocation.BoardRow].Rows;
         }
-
-        return newLocation
-         */
+        
+        return newLocation;
     }
     
     public ref Piece GetPieceInstance(string token)
