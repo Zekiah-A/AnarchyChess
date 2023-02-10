@@ -114,6 +114,16 @@ input[type="button"]:hover {
     height: min(calc(100% - 28px), 640px);
 }
 
+.main-menu > div {
+    display: flex;
+    flex-direction: column;
+	width: 100%;
+}
+
+.main-menu > div > * {
+	align-self: center;
+}
+
 .spawn-menu {
     background-color: var(--ui-background-transparent);
     width: min(calc(100% - 28px), 500px);
@@ -416,7 +426,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
 
 #ghostMenuLeft:hover {
 	left: 30%;
-	transform: translate(-50%, -50%) scale(0.9);
+	transform: translate(-50%, -50%) scale(0.9) rotateZ(-2deg);
 }
 
 #ghostMenuLeft > .arrow {
@@ -450,7 +460,7 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
 
 #ghostMenuRight:hover {
 	left: 70%;
-	transform: translate(-50%, -50%) scale(0.9);
+	transform: translate(-50%, -50%) scale(0.9) rotateZ(2deg);
 }
 
 #ghostMenuRight:hover > .arrow {
