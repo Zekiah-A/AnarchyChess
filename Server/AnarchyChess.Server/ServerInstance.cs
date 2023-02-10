@@ -8,20 +8,20 @@ public abstract class ServerInstance : IServerInstance
     public DualDictionary<ClientMetadata, string> Clients { get; }
     public WatsonWsServer App { get; }
     public Action<string> Logger { get; }
+    public int InstanceId { get; set; }
 
-    private protected ServerInstance(WatsonWsServer server, Action<string>? logger = null, Map? map = null)
+    public ServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null)
     {
         App = server;
         Logger = logger;
         Clients = new DualDictionary<ClientMetadata, string>();
     }
 
-    public async Task StartAsync()
+    public void StartAsync()
     {
         App.ClientConnected += OnClientConnected;
         App.MessageReceived += OnMessageReceived;
         App.ClientDisconnected += OnClientDisconnected;
-        await App.StartAsync();
     }
 
     private protected virtual void OnClientConnected(object? sender, ClientConnectedEventArgs args)

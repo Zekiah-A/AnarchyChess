@@ -9,6 +9,7 @@ public interface IServerInstance
     public DualDictionary<ClientMetadata, string> Clients { get; }
     public WatsonWsServer App { get; }
     public Action<string>? Logger { get; }
+    public int InstanceId { get; set; }
     
     public async Task StartAsync() { }
 }

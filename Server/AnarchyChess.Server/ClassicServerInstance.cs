@@ -9,7 +9,7 @@ namespace AnarchyChess.Server;
 
 public sealed class ClassicServerInstance : ServerInstance
 {
-    internal ClassicServerInstance(WatsonWsServer server, Action<string>? logger = null, Map? map = null) : base(server, logger, map)
+    public ClassicServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null) : base(ref server, ref logger, map)
     {
     }
 }

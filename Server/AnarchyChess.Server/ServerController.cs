@@ -1,15 +1,12 @@
-using System.Buffers.Binary;
-using System.Text;
-using AnarchyChess.Server.Events;
-using AnarchyChess.Server.Packets;
-using AnarchyChess.Server.Virtual;
 using Microsoft.Extensions.Logging;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
 public sealed class ServerController
 {
-    public List<IServerInstance> Instances;
+    private IList<IServerInstance> instances;
+    
+    public IList<IServerInstance> Instances { get => instances.AsReadOnly(); private init => instances = value; }
     public Action<string>? Logger;
     public WatsonWsServer App;
 
@@ -19,15 +16,16 @@ public sealed class ServerController
         App = new WatsonWsServer(port, ssl, certificatePath, keyPath, LogLevel.Trace, hostname ?? "localhost");
     }
 
-    public void CreateInstance<T>(params object[]? args) where T : IServerInstance
+    public void AttachInstance(IServerInstance instance)
     {
-        var instance = (T) Activator.CreateInstance(typeof(T), App, Logger, args)!;
+        instance.InstanceId = instances.Count < 255 ? instances.Count + 1 : throw new ArgumentOutOfRangeException();
         Instances.Add(instance);
     }
-
+    
     public async Task StartAsync()
     {
         await Task.WhenAll(Instances.Select(instance => instance.StartAsync()).ToList());
+        await App.StartAsync();
         await Task.Delay(-1);
     }
 }

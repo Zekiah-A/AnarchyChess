@@ -3,7 +3,6 @@ using System.Text;
 using AnarchyChess.Server.Events;
 using AnarchyChess.Server.Packets;
 using AnarchyChess.Server.Virtual;
-using Microsoft.Extensions.Logging;
 using WatsonWebsocket;
 namespace AnarchyChess.Server;
 
@@ -12,7 +11,7 @@ public sealed class AnarchyChessServerInstance : ServerInstance
     public Dictionary<ClientMetadata, DateTime> IdlePieces = new();
     public Timer IdleDeletionTick;
 
-    public AnarchyChessServerInstance(WatsonWsServer server, Action<string>? logger = null, Map? map = null) : base(server, logger, map)
+    public AnarchyChessServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null) : base(ref server, ref logger, map)
     {
         map ??= new Map();
         VirtualMap = map.Value;
