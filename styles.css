@@ -114,6 +114,16 @@ input[type="button"]:hover {
     height: min(calc(100% - 28px), 640px);
 }
 
+.main-menu > div {
+    display: flex;
+    flex-direction: column;
+	width: 100%;
+}
+
+.main-menu > div > * {
+	align-self: center;
+}
+
 .spawn-menu {
     background-color: var(--ui-background-transparent);
     width: min(calc(100% - 28px), 500px);
@@ -403,4 +413,64 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     text-shadow: 2px 2px #fff;
     background: var(--ui-hilight-transparent);
     pointer-events: none;
+}
+
+#ghostMenuLeft {
+	left: 45%;
+	opacity: 0.6;
+	background-color: black;
+	transform: translate(-50%, -50%) perspective(1000px) rotateY(8deg) scale(0.9);
+	cursor: pointer;
+	transition: .2s left, .2s transform;
+}
+
+#ghostMenuLeft:hover {
+	left: 30%;
+	transform: translate(-50%, -50%) scale(0.9) rotateZ(-2deg);
+}
+
+#ghostMenuLeft > .arrow {
+	position: absolute;
+	left: 8px;
+	top: 50%;
+	fill: white;
+	transform: translateY(-50%);
+}
+
+#ghostMenuLeft > p {
+	color: white;
+}
+
+#ghostMenuRight > p {
+	color: white;
+}
+
+#ghostMenuLeft:hover > .arrow {
+	opacity: 0.2;
+}
+
+#ghostMenuRight {
+	left: 55%;
+	opacity: 0.6;
+	background-color: black;
+	transform: translate(-50%, -50%) perspective(1000px) rotateY(-8deg) scale(0.9);
+	transition: .2s left, .2s transform;
+	cursor: pointer;
+}
+
+#ghostMenuRight:hover {
+	left: 70%;
+	transform: translate(-50%, -50%) scale(0.9) rotateZ(2deg);
+}
+
+#ghostMenuRight:hover > .arrow {
+	opacity: 0.2;
+}
+
+#ghostMenuRight > .arrow {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	fill: white;
+	transform: translateY(-50%);
 }

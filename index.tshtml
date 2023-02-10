@@ -88,62 +88,93 @@
     
 	<div class="menu main-menu" style="left: 30%; opacity: 0.6; background-color: black; transform: translate(-50%, -50%) perspective(1000px) rotateY(8deg) scale(0.9);">
 		<h1 style="color: white">Situations</h1>
+        <p>
+            Classic chess, except every 30 seconds every pair's board is swapped for another,
+            leaving them in an entierly new situation. First person to checkmate in the pair wins.
+        </p>
 	</div>
     <div class="menu main-menu" style="left: 70%; opacity: 0.6; background-color: black; transform: translate(-50%, -50%) perspective(1000px) rotateY(-8deg) scale(0.9);">
 		<h1 style="color: white">Classic</h1>
+        <p>Bog standard chess matchmaking. Play against an opponent across the world.</p>
 	</div>
 
     <div id="mainMenu" class="menu main-menu">
-        <h1>Anarchy Chess</h1>
-        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
-        <p>Choose a piece</p>
-        <div class="scroll-picker"
-            ontouchmove="
-                this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX)
-                scroll({ left:  + this.scrollLeft, top: 0, behavior: 'smooth' })
-            "
-            onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
-            onclick="
+        <div page="anarchychess">
+            <h1>Anarchy Chess</h1>
+            <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+            <p>Choose a piece</p>
+            <div class="scroll-picker"
+                ontouchmove="
+                    this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX)
+                    scroll({ left:  + this.scrollLeft, top: 0, behavior: 'smooth' })
+                "
+                onwheel="scroll({ left: event.deltaY + this.scrollLeft, top: 0, behavior: 'smooth' })"
+                onclick="
+                    let target = event.target as HTMLElement
+                    if (target == this)
+                        return
+                    this.querySelector('[selected]')?.removeAttribute('selected')
+                    target.setAttribute('selected', String(true))
+                    pieceType = pieceTypes[target.textContent]
+                ">
+                <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
+                <div>Bishop<img src="Assets/bishop_black.svg"></div>
+                <div>Knight<img src="Assets/knight_black.svg"></div>
+                <div>Rook<img src="Assets/rook_black.svg"></div>
+                <div>Queen<img src="Assets/queen_black.svg"></div>
+                <div>King<img src="Assets/king_black.svg"></div>
+            </div>
+            <div style="flex-grow: 1;"></div>
+            <div>Choose a colour</div>
+            <div style="flex-grow: 1;"></div>
+            <div class="dual-options" onclick="
                 let target = event.target as HTMLElement
                 if (target == this)
                     return
                 this.querySelector('[selected]')?.removeAttribute('selected')
                 target.setAttribute('selected', String(true))
-                pieceType = pieceTypes[target.textContent]
-            ">
-            <div selected>Pawn<img src="Assets/pawn_black.svg"></div>
-            <div>Bishop<img src="Assets/bishop_black.svg"></div>
-            <div>Knight<img src="Assets/knight_black.svg"></div>
-            <div>Rook<img src="Assets/rook_black.svg"></div>
-            <div>Queen<img src="Assets/queen_black.svg"></div>
-            <div>King<img src="Assets/king_black.svg"></div>
-        </div>
-        <div style="flex-grow: 1;"></div>
-        <div>Choose a colour</div>
-        <div style="flex-grow: 1;"></div>
-        <div class="dual-options" onclick="
-            let target = event.target as HTMLElement
-            if (target == this)
-                return
-            this.querySelector('[selected]')?.removeAttribute('selected')
-            target.setAttribute('selected', String(true))
-            pieceColour = Array.prototype.indexOf.call(this.children, event.target) 
-            ">
-            <div class="black-white" style="color: white; background-color: black;">
-                Black
-                <div id="blackBalance"></div>
+                pieceColour = Array.prototype.indexOf.call(this.children, event.target) 
+                ">
+                <div class="black-white" style="color: white; background-color: black;">
+                    Black
+                    <div id="blackBalance"></div>
+                </div>
+                <div selected class="black-white" style="color: black; background-color: white;">
+                    White
+                    <div id="whiteBalance"></div>
+                </div>
             </div>
-            <div selected class="black-white" style="color: black; background-color: white;">
-                White
-                <div id="whiteBalance"></div>
-            </div>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="
+                mainMenu.style.display = 'none';
+                selectSpawnLocation()
+            ">
+            <div style="flex-grow: 1;"></div>    
         </div>
-        <div style="flex-grow: 1;"></div>
-        <input style="width: 40%;" value="Play" type="button" onclick="
-            mainMenu.style.display = 'none';
-            selectSpawnLocation()
-        ">
-        <div style="flex-grow: 1;"></div>
+        <div gamemode="situation">
+            <h1>Situation</h1>
+            <p>
+                Classic chess, except every 30 seconds every pair's board is swapped for another,
+                leaving them in an entierly new situation. First person to checkmate in the pair wins.
+            </p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="mainMenu.style.display = 'none';">
+        </div>
+        <div gamemode="classic">
+            <h1>Classic</h1>
+            <p>Bog standard chess matchmaking. Play against an opponent across the world.</p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="mainMenu.style.display = 'none';">
+        </div>
+        <div gamemode="battleroyal">
+            <h1>Battle Royal</h1>
+            <p>
+                Everyone's given a unique colour: there are no teammates. Kill to survive, land on piece upgrades to promote to a higher (or lower) piece. Collect lives and other boosts.
+                First to kill the king who will spawn after enough players are eliminated wins.
+            </p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="mainMenu.style.display = 'none';">
+        </div>
     </div>
 
     <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
