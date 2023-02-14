@@ -9,7 +9,7 @@ namespace AnarchyChess.Server;
 
 public sealed class SituationServerInstance : ServerInstance
 {
-    public SituationServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null) : base(ref server, ref logger, map)
+    public SituationServerInstance(Map? map = null) : base(map)
     {
     }
 }

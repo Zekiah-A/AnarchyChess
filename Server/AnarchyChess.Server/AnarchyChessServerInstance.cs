@@ -11,7 +11,7 @@ public sealed class AnarchyChessServerInstance : ServerInstance
     public Dictionary<ClientMetadata, DateTime> IdlePieces = new();
     public Timer IdleDeletionTick;
 
-    public AnarchyChessServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null) : base(ref server, ref logger, map)
+    public AnarchyChessServerInstance(Map? map = null) : base(map)
     {
         map ??= new Map();
         VirtualMap = map.Value;

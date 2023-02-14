@@ -1,8 +1,7 @@
 ﻿using AnarchyChess.Server;
 
-
 // GameData data, Map map, string certificatePath, string keyPath, string origin, bool ssl, int port
-var server = new ServerController(8087)
+var server = new ServerController
 {
     Logger = message =>
     {
@@ -10,9 +9,5 @@ var server = new ServerController(8087)
     }
 };
 
-server.Instances.Add(new AnarchyChessServerInstance(ref server.Logger));
-server.Instances.Add(new BattleRoyalServerInstance(ref server.Logger));
-server.Instances.Add(new ClassicServerInstance(ref server.Logger));
-server.Instances.Add(new SituationServerInstance(ref server.App, ref server.Logger));
-
+server.AttachInstance(new AnarchyChessServerInstance(), 8087);
 await server.StartAsync();

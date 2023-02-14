@@ -254,7 +254,6 @@ Cursed fade out when there is more to display effect - we disable for now
     position: relative;
     border-radius: 4px;
     overflow: clip;
-    margin-top: 8px;
 }
 
 .gamemodes-item[selected] {
@@ -318,11 +317,14 @@ This is a cursed blur effect that is supposed to go behind main menu, broken for
     z-index: 5;
     height: auto;
     left: 0px;
-    transition: .2s left;
+    opacity: 1;
+    row-gap: 8px;
+    transition: .2s left, .2s opacity;
 }
 
 #gamemodesPanel[closed] {
     left: -272px;
+    opacity: 0;
 }
 
 #gamemodeTitle {

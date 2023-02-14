@@ -9,7 +9,7 @@ namespace AnarchyChess.Server;
 
 public sealed class BattleRoyalServerInstance : ServerInstance
 {
-    public BattleRoyalServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null) : base(ref server, ref logger, map)
+    public BattleRoyalServerInstance(Map? map = null) : base(map)
     {
     }
 }
