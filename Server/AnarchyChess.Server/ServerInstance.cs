@@ -10,7 +10,7 @@ public abstract class ServerInstance : IServerInstance
     public Action<string> Logger { get; }
     public int InstanceId { get; set; }
 
-    public ServerInstance(ref WatsonWsServer server, ref Action<string>? logger, Map? map = null)
+    public ServerInstance(ref Action<string>? logger, Map? map = null)
     {
         App = server;
         Logger = logger;

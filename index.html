@@ -18,7 +18,6 @@
 " onmouseup="
     dragging = false;
 ">
-    
     <p class="copyright-notice">
         If you're seeing this, you probably moved the board offscreen. ©Anarchy Chess, Zekiah-A
     </p>
@@ -27,8 +26,38 @@
         <!-- Parent element that contains all canvases -->
     </div>
 
-    <div class="hud game-title">
+    <div id="gamemodeTitle" class="hud" onclick="
+    gamemodesPanel.toggleAttribute('closed');
+">
         <p>Anarchy Chess</p>
+    </div>
+
+    <div id="gamemodesPanel" class="info-panel" closed="">
+        <h3>Gamemodes:</h3>
+        <div class="gamemodes-item" selected="">
+            <img src="Assets/anarchy_chess_icon.png" width="100%">
+            <div>
+                <span style="">Anarchy Chess</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/situations_icon.png" width="100%">
+            <div>
+                <span style="">Situation</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/classic_icon.png" width="100%">
+            <div>
+                <span style="">Classic</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/battle_royal_icon.png" width="100%">
+            <div>
+                <span style="">Battle Royal</span>
+            </div>
+        </div>
     </div>
 
     <!--TODO: Use toggleAttribute instead-->
@@ -95,24 +124,13 @@
             <input value="Main menu" type="button">
         </div>
     </div>
-
-    <div id="ghostMenuLeft" class="menu main-menu">
-		<h1 style="color: white">Situations</h1>
-		<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,</p>
-		<svg class="arrow" xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="M20 44 0 24 20 4l2.8 2.85L5.65 24 22.8 41.15Z"/></svg>
-	</div>
-
-    <div id="ghostMenuRight" class="menu main-menu">
-		<h1 style="color: white">Classic</h1>
-		<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,</p>
-		<svg class="arrow" xmlns="http://www.w3.org/2000/svg" height="48" width="48"><path d="m15.2 43.9-2.8-2.85L29.55 23.9 12.4 6.75l2.8-2.85 20 20Z"/></svg>
-	</div>
-
+    
     <div id="mainMenu" class="menu main-menu">
-        <h1>Anarchy Chess</h1>
-        <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
-        <p>Choose a piece</p>
-        <div class="scroll-picker" ontouchmove="
+        <div page="anarchychess">
+            <h1>Anarchy Chess</h1>
+            <p>A massive multiplayer chess board, with multiple gamemodes and slightly bent rules. Here be anarchy.</p>
+            <p>Choose a piece</p>
+            <div class="scroll-picker" ontouchmove="
     this['movementX'] = event.touches[0].clientX - (this['movementX'] || event.touches[0].clientX);
     scroll({ left: +this.scrollLeft, top: 0, behavior: 'smooth' });
 " onwheel="
@@ -126,17 +144,17 @@
     target.setAttribute('selected', String(true));
     pieceType = pieceTypes[target.textContent];
 ">
-            <div selected="">Pawn<img src="Assets/pawn_black.svg"></div>
-            <div>Bishop<img src="Assets/bishop_black.svg"></div>
-            <div>Knight<img src="Assets/knight_black.svg"></div>
-            <div>Rook<img src="Assets/rook_black.svg"></div>
-            <div>Queen<img src="Assets/queen_black.svg"></div>
-            <div>King<img src="Assets/king_black.svg"></div>
-        </div>
-        <div style="flex-grow: 1;"></div>
-        <div>Choose a colour</div>
-        <div style="flex-grow: 1;"></div>
-        <div class="dual-options" onclick="
+                <div selected="">Pawn<img src="Assets/pawn_black.svg"></div>
+                <div>Bishop<img src="Assets/bishop_black.svg"></div>
+                <div>Knight<img src="Assets/knight_black.svg"></div>
+                <div>Rook<img src="Assets/rook_black.svg"></div>
+                <div>Queen<img src="Assets/queen_black.svg"></div>
+                <div>King<img src="Assets/king_black.svg"></div>
+            </div>
+            <div style="flex-grow: 1;"></div>
+            <div>Choose a colour</div>
+            <div style="flex-grow: 1;"></div>
+            <div class="dual-options" onclick="
     var _a;
     let target = event.target;
     if (target == this)
@@ -145,21 +163,52 @@
     target.setAttribute('selected', String(true));
     pieceColour = Array.prototype.indexOf.call(this.children, event.target);
 ">
-            <div class="black-white" style="color: white; background-color: black;">
-                Black
-                <div id="blackBalance"></div>
+                <div class="black-white" style="color: white; background-color: black;">
+                    Black
+                    <div id="blackBalance"></div>
+                </div>
+                <div selected="" class="black-white" style="color: black; background-color: white;">
+                    White
+                    <div id="whiteBalance"></div>
+                </div>
             </div>
-            <div selected="" class="black-white" style="color: black; background-color: white;">
-                White
-                <div id="whiteBalance"></div>
-            </div>
-        </div>
-        <div style="flex-grow: 1;"></div>
-        <input style="width: 40%;" value="Play" type="button" onclick="
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="
     mainMenu.style.display = 'none';
     selectSpawnLocation();
 ">
-        <div style="flex-grow: 1;"></div>
+            <div style="flex-grow: 1;"></div>    
+        </div>
+        <div gamemode="situation">
+            <h1>Situation</h1>
+            <p>
+                Classic chess, except every 30 seconds every pair's board is swapped for another,
+                leaving them in an entierly new situation. First person to checkmate in the pair wins.
+            </p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="
+    mainMenu.style.display = 'none';
+">
+        </div>
+        <div gamemode="classic">
+            <h1>Classic</h1>
+            <p>Bog standard chess matchmaking. Play against an opponent across the world.</p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="
+    mainMenu.style.display = 'none';
+">
+        </div>
+        <div gamemode="battleroyal">
+            <h1>Battle Royal</h1>
+            <p>
+                Everyone's given a unique colour: there are no teammates. Kill to survive, land on piece upgrades to promote to a higher (or lower) piece. Collect lives and other boosts.
+                First to kill the king who will spawn after enough players are eliminated wins.
+            </p>
+            <div style="flex-grow: 1;"></div>
+            <input style="width: 40%;" value="Play" type="button" onclick="
+    mainMenu.style.display = 'none';
+">
+        </div>
     </div>
 
     <div id="spawnMenu" style="display: none;" class="menu spawn-menu">
@@ -508,7 +557,6 @@ function connect(address) {
     };
     ws.onclose = (event) => {
         console.error(event);
-        setTimeout(() => { window.location.reload(); }, 1000);
     };
 }
 function addChatMessage(message, event = null) {

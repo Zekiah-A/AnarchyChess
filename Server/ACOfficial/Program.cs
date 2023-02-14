@@ -10,9 +10,9 @@ var server = new ServerController(8087)
     }
 };
 
-server.Instances.Add(new AnarchyChessServerInstance(ref server.App, ref server.Logger));
-server.Instances.Add(new BattleRoyalServerInstance(ref server.App, ref server.Logger));
-server.Instances.Add(new ClassicServerInstance(ref server.App, ref server.Logger));
+server.Instances.Add(new AnarchyChessServerInstance(ref server.Logger));
+server.Instances.Add(new BattleRoyalServerInstance(ref server.Logger));
+server.Instances.Add(new ClassicServerInstance(ref server.Logger));
 server.Instances.Add(new SituationServerInstance(ref server.App, ref server.Logger));
 
 await server.StartAsync();

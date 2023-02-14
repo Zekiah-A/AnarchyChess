@@ -11,7 +11,6 @@
 
 <body onmousedown="dragging = true" onmousemove="onDragBody(event)"
       onwheel="onWheelBody(event)" onmouseup="dragging = false">
-    
     <p class="copyright-notice">
         If you're seeing this, you probably moved the board offscreen. ©Anarchy Chess, Zekiah-A
     </p>
@@ -20,8 +19,36 @@
         <!-- Parent element that contains all canvases -->
     </div>
 
-    <div class="hud game-title">
+    <div id="gamemodeTitle" class="hud" onclick="gamemodesPanel.toggleAttribute('closed')">
         <p>Anarchy Chess</p>
+    </div>
+
+    <div id="gamemodesPanel" class="info-panel" closed="">
+        <h3>Gamemodes:</h3>
+        <div class="gamemodes-item" selected="">
+            <img src="Assets/anarchy_chess_icon.png" width="100%">
+            <div>
+                <span style="">Anarchy Chess</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/situations_icon.png" width="100%">
+            <div>
+                <span style="">Situation</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/classic_icon.png" width="100%">
+            <div>
+                <span style="">Classic</span>
+            </div>
+        </div>
+        <div class="gamemodes-item">
+            <img src="Assets/battle_royal_icon.png" width="100%">
+            <div>
+                <span style="">Battle Royal</span>
+            </div>
+        </div>
     </div>
 
     <!--TODO: Use toggleAttribute instead-->
@@ -86,18 +113,6 @@
         </div>
     </div>
     
-	<div class="menu main-menu" style="left: 30%; opacity: 0.6; background-color: black; transform: translate(-50%, -50%) perspective(1000px) rotateY(8deg) scale(0.9);">
-		<h1 style="color: white">Situations</h1>
-        <p>
-            Classic chess, except every 30 seconds every pair's board is swapped for another,
-            leaving them in an entierly new situation. First person to checkmate in the pair wins.
-        </p>
-	</div>
-    <div class="menu main-menu" style="left: 70%; opacity: 0.6; background-color: black; transform: translate(-50%, -50%) perspective(1000px) rotateY(-8deg) scale(0.9);">
-		<h1 style="color: white">Classic</h1>
-        <p>Bog standard chess matchmaking. Play against an opponent across the world.</p>
-	</div>
-
     <div id="mainMenu" class="menu main-menu">
         <div page="anarchychess">
             <h1>Anarchy Chess</h1>
@@ -584,7 +599,6 @@
         
         ws.onclose = (event) => {
             console.error(event)
-            setTimeout(() => { window.location.reload() }, 1000)
         }
     }
 
